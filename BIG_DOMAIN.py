@@ -44,8 +44,7 @@ import re
 #figure out why adding warning to the posted_alerts[] list still plots again 
 #optimisations!! once everything is working, make it fast. cache as much as possible, especially the city names csv, only have my region cities
 
-FACEBOOK_PAGE_ACCESS_TOKEN = "EAATPe7wENL8BO5DpthYprbCSCtEvGt0vMs6YyXoYhPGeWfvAZC91OaxlTvwWCzIX5ZBK3Ix25P9ZCY5pZAL1VB27T5e21tq5ZCOXbC0BhF8M7jHIe49EE9ZB9qf9Y1yWDKEK2cQaI8D3aZC7MKEyp5KfZBkM27uW2Ovhwoz60hbYk2hEg9VKZBII11aq5oKnAM2zGuwJYqZA0o" #this SHOULD be a permanent access token as long as I don't do anything to the permissions or put on a public github repo
-FACEBOOK_PAGE_ID = "506569049206176"
+
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
 
 
