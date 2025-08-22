@@ -753,7 +753,7 @@ def plot_alert_polygon(alert, output_path):
         ax.text(0.01, 0.95, f"Issued {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='bottom', 
                 fontsize=10, backgroundcolor="#eeeeeecc") #plotting this down here so it goes on top of city names
-        ax.text(0.85, 0.97, f"Radar data valid {radar_valid_time}", #radar time
+        ax.text(0.80, 0.97, f"Radar data valid {radar_valid_time}", #radar time
                 transform=ax.transAxes, ha='left', va='bottom', 
                 fontsize=7, backgroundcolor="#eeeeeecc")
         
