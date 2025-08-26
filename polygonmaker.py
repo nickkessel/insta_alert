@@ -759,7 +759,7 @@ def plot_alert_polygon(alert, output_path):
         
         #draw radar data in bg
         mrms_img = mpimg.imread('mrms_stuff/test0.png') #need to update this to be a relative, changing location not a fixed 1!!!
-        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree())
+        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 2)
         
         # Draw the polygon
         if geom.geom_type == 'Polygon':
