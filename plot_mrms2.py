@@ -39,9 +39,10 @@ normalized_stops = [
 radarscope_cmap = LinearSegmentedColormap.from_list("radarscope", normalized_stops)
 
 #inches, (R G B)
-stops2 = [
+stops2 = [ #good color scale
     (0.0,  (0, 0, 0, 0)),         
-    (0.01, (155, 255, 155, 255)), 
+    (0.01, (68, 166, 255, 120)),
+    (0.1,  (155, 255, 155, 255)), 
     (0.5,  (0, 200, 0, 255)),     
     (1.0,  (255, 255, 0, 255)),   
     (2.0,  (255, 128, 0, 255)),   
@@ -49,6 +50,7 @@ stops2 = [
     (4.5,  (150, 0, 75, 255)),    
     (6.0,  (255, 0, 255, 255)),   
 ]
+
 # Normalize dBZ values to 0–1 for matplotlib
 min_val2 = stops2[0][0]
 max_val2 = stops2[-1][0]
@@ -79,8 +81,8 @@ def save_mrms_subset(bbox, type, output_path):
     
     if type == "Flash Flood Warning":
         url = qpe1_url
+        convert_units = True
         print("QPE")
-        #set colormaps
         cmap_to_use = qpe_cmap
         data_min, data_max = min_val2, max_val2
         cbar_label = "Radar Estimated Precipitaiton (1h)"
@@ -121,6 +123,13 @@ def save_mrms_subset(bbox, type, output_path):
         print("Error: Data subset is empty. Check your bounding box coordinates.")
         os.remove("latest.grib2")
         return
+    
+    if convert_units: #so it scales correctly
+        subset['unknown'] = subset['unknown'] / 25.4
+        print("units converted")
+        
+    print(f"min: {subset.unknown.min().item()}, max: {subset.unknown.max().item()}")
+        
     # create the Plot
     print("Generating plot...")
     fig = plt.figure(figsize=(10, 8))
