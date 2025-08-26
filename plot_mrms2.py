@@ -38,8 +38,29 @@ normalized_stops = [
 # Create the colormap
 radarscope_cmap = LinearSegmentedColormap.from_list("radarscope", normalized_stops)
 
+#inches, (R G B)
+stops2 = [
+    (0.0,  (0, 0, 0, 0)),         
+    (0.01, (155, 255, 155, 255)), 
+    (0.5,  (0, 200, 0, 255)),     
+    (1.0,  (255, 255, 0, 255)),   
+    (2.0,  (255, 128, 0, 255)),   
+    (3.0,  (255, 0, 0, 255)),     
+    (4.5,  (150, 0, 75, 255)),    
+    (6.0,  (255, 0, 255, 255)),   
+]
+# Normalize dBZ values to 0–1 for matplotlib
+min_val2 = stops2[0][0]
+max_val2 = stops2[-1][0]
+normalized_stops2 = [
+    ((level - min_val2) / (max_val2 - min_val2), tuple(c/255 for c in color))
+    for level, color in stops2
+]
+# Create the colormap
+qpe_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops2)
+
 valid_time = 0
-def save_mrms_subset(bbox, output_path):
+def save_mrms_subset(bbox, type, output_path):
     """
     Fetches latest MRMS data, subsets it to a bounding box, 
     and saves it as a transparent PNG.
@@ -47,11 +68,30 @@ def save_mrms_subset(bbox, output_path):
     Args:
         bbox (dict): A dictionary with keys 'lon_min', 'lon_max', 
                      'lat_min', 'lat_max'.
+        type (str): The type of warning. This'll generate a different image & colormap
+                    for a svr/tor (reflectivity) vs ffw (QPE). Pass in full names
         output_path (str): The path to save the output PNG file.
     """
-    # 1. Download and Decompress (same as before)
-    url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
-    print(f"Fetching data from {url}")
+    #  Download and Decompress 
+    ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
+    qpe_url = "https://mrms.ncep.noaa.gov/2D/MultiSensor_QPE_03H_Pass1/MRMS_MultiSensor_QPE_03H_Pass1.latest.grib2.gz" #pass 1 seems to be updated sooner, could try and implement choosing diff. one depending on when alert is being generated
+    qpe1_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz" #seems to be updated much quicker than the other product    print(f"Fetching data from {url}")
+    
+    if type == "Flash Flood Warning":
+        url = qpe1_url
+        print("QPE")
+        #set colormaps
+        cmap_to_use = qpe_cmap
+        data_min, data_max = min_val2, max_val2
+        cbar_label = "Radar Estimated Precipitaiton (1h)"
+    else:
+        url = ref_url
+        print("REF")
+        cmap_to_use = radarscope_cmap
+        data_min, data_max = min_dbz, max_dbz
+        cbar_label = "Reflectivity (dBZ)"
+        
+    print(f"Fetching data from {url}")    
     
     try:
         response = requests.get(url, timeout=30)
@@ -67,9 +107,7 @@ def save_mrms_subset(bbox, output_path):
     print("Reading and subsetting data...")
     ds = xr.open_dataset("latest.grib2", engine="cfgrib")
     
-    # Use xarray's .sel() to slice the data to the bounding box
-    # This is the key optimization step
-    # GRIB files often use 0-360 longitude, so we convert our -180 to 180 box.
+    # slice dataset to just bounding box we care about (faster)
     lon_slice = slice(
         bbox['lon_min'] + 360 if bbox['lon_min'] < 0 else bbox['lon_min'],
         bbox['lon_max'] + 360 if bbox['lon_max'] < 0 else bbox['lon_max']
@@ -83,10 +121,10 @@ def save_mrms_subset(bbox, output_path):
         print("Error: Data subset is empty. Check your bounding box coordinates.")
         os.remove("latest.grib2")
         return
-    # 3. Create the Plot
+    # create the Plot
     print("Generating plot...")
     fig = plt.figure(figsize=(10, 8))
-    proj = ccrs.LambertConformal(central_longitude=-97.5, central_latitude=38.5)
+    proj = ccrs.LambertConformal(central_longitude=(bbox['lon_min']), central_latitude=(bbox['lat_min'])) #should try finding middle of bbox for this
     ax = fig.add_subplot(1, 1, 1, projection=proj)
 
     # Set map extent to the bounding box
@@ -94,19 +132,23 @@ def save_mrms_subset(bbox, output_path):
         [bbox['lon_min'], bbox['lon_max'], bbox['lat_min'], bbox['lat_max']], 
         crs=ccrs.PlateCarree()
     )
-
-    # 4. Customize and Plot Subset
-    # Add ONLY state borders
+    
+    # Add state borders
     ax.add_feature(cfeature.STATES.with_scale('50m'), linestyle='-', edgecolor='white')
 
-    # Plot the SUBSET of reflectivity data
+    # Plot the some mrms data
     im = ax.pcolormesh(
         subset.longitude, subset.latitude, subset.unknown,
         transform=ccrs.PlateCarree(),
-        cmap=radarscope_cmap, vmin=-15, vmax=95
+        cmap=cmap_to_use, vmin= data_min, vmax=data_max
     )
+    
+    #add colorbar
+    cbar = plt.colorbar(im, orientation = 'horizontal', pad=0.01, aspect=50,
+                        shrink = 0.75)
+    cbar.set_label(cbar_label, color='white', fontsize=12, weight='bold')
 
-    # 5. Save the Figure to a File
+    # save figure
     print(f"Saving image to {output_path}...")
     plt.savefig(
         output_path,
@@ -136,10 +178,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -89,
-        "lon_max": -81,
-        "lat_min": 29.5,
-        "lat_max": 35.1
+        "lon_min": -82,
+        "lon_max": -79,
+        "lat_min": 27,
+        "lat_max": 29
     }
 
-    save_mrms_subset(test_bbox, 'mrms_stuff/test_ref')
+    save_mrms_subset(test_bbox, "Flash Flood Warning", 'mrms_stuff/test_ref')
