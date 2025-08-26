@@ -681,7 +681,7 @@ def plot_alert_polygon(alert, output_path):
         #print(f'total cities available: {len(df_large)}')
         print(f'cities in view: {len(visible_cities_df)}')
         #TESTING!!
-        radar_valid_time = save_mrms_subset(map_region2, 'mrms_stuff/test0.png')
+        radar_valid_time = save_mrms_subset(map_region2, alert_type, 'mrms_stuff/test0.png')
         
         
         #plot cities
