@@ -8,6 +8,8 @@ import os
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
+#TODO: fix position of the colorbar/legend
+#TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [
