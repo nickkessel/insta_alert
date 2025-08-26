@@ -62,10 +62,10 @@ target_bbox = { #this is the area that is being scanned for alerts as well
         "lat_max": 39.664914
     } 
 test_bbox = {
-        "lon_min": -98,
-        "lon_max": -93,
-        "lat_min": 40,
-        "lat_max": 50
+        "lon_min": -114,
+        "lon_max": -112,
+        "lat_min": 34,
+        "lat_max": 36
 }
 
 warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning"]
