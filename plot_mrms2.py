@@ -76,11 +76,11 @@ def save_mrms_subset(bbox, type, output_path):
     """
     #  Download and Decompress 
     ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
-    qpe_url = "https://mrms.ncep.noaa.gov/2D/MultiSensor_QPE_03H_Pass1/MRMS_MultiSensor_QPE_03H_Pass1.latest.grib2.gz" #pass 1 seems to be updated sooner, could try and implement choosing diff. one depending on when alert is being generated
-    qpe1_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz" #seems to be updated much quicker than the other product    print(f"Fetching data from {url}")
+    qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz" #past 1 hour, updated every 2min, with a 4-5min lag
+    qpe3hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_03H/MRMS_RadarOnly_QPE_03H.latest.grib2.gz" #past 3 hours (only updated at the top of every hour???? better data but thats not great)
     
     if type == "Flash Flood Warning":
-        url = qpe1_url
+        url = qpe1hr_url
         convert_units = True
         print("QPE")
         cmap_to_use = qpe_cmap
@@ -154,8 +154,8 @@ def save_mrms_subset(bbox, type, output_path):
     
     #add colorbar
     cbar = plt.colorbar(im, orientation = 'horizontal', pad=0.01, aspect=50,
-                        shrink = 0.75)
-    cbar.set_label(cbar_label, color='white', fontsize=12, weight='bold')
+                        shrink = 0.65)
+    cbar.set_label(cbar_label, color="#7a7a7a", fontsize=12, weight='bold')
 
     # save figure
     print(f"Saving image to {output_path}...")

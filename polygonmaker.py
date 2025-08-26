@@ -759,25 +759,25 @@ def plot_alert_polygon(alert, output_path):
         
         #draw radar data in bg
         mrms_img = mpimg.imread('mrms_stuff/test0.png') #need to update this to be a relative, changing location not a fixed 1!!!
-        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
+        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree())
         
         # Draw the polygon
         if geom.geom_type == 'Polygon':
             if alert_type == "Severe Thunderstorm Warning":
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=2, transform=ccrs.PlateCarree())
+                ax.plot(x, y, color='black', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
                 ax.fill(x, y, facecolor='#ffff0050')
             elif alert_type == 'Tornado Warning':
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree())
+                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
                 ax.fill(x, y, facecolor="#ff000050")
             elif alert_type == 'Flash Flood Warning':
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree())
-                ax.fill(x, y, facecolor = "#00ff2f50")
+                ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
+                ax.fill(x, y, facecolor = "#00ff2f50", zorder = 1)
             else:
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree())
+                ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
                 ax.fill(x, y, facecolor = "#8e8e8e49")  
                   
         elif geom.geom_type == 'MultiPolygon':
