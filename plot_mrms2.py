@@ -10,6 +10,7 @@ import numpy as np
 
 #TODO: fix position of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
+#TODO: scale imagery properly to the graphics - you can tell it's distorted by the strecthed text
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [
@@ -64,7 +65,7 @@ normalized_stops2 = [
 qpe_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops2)
 
 valid_time = 0
-def save_mrms_subset(bbox, type, output_path):
+def save_mrms_subset(bbox, type, state_borders):
     """
     Fetches latest MRMS data, subsets it to a bounding box, 
     and saves it as a transparent PNG.
@@ -74,7 +75,8 @@ def save_mrms_subset(bbox, type, output_path):
                      'lat_min', 'lat_max'.
         type (str): The type of warning. This'll generate a different image & colormap
                     for a svr/tor (reflectivity) vs ffw (QPE). Pass in full names
-        output_path (str): The path to save the output PNG file.
+        state_borders (bool): Draws state borders in white. Useful for testing, unnecessary for 
+                    the warning graphics
     """
     #  Download and Decompress 
     ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
@@ -87,9 +89,10 @@ def save_mrms_subset(bbox, type, output_path):
         print("QPE")
         cmap_to_use = qpe_cmap
         data_min, data_max = min_val2, max_val2
-        cbar_label = "Radar Estimated Precipitaiton (1h)"
+        cbar_label = "Radar Estimated Precipitation (1h)"
     else:
         url = ref_url
+        convert_units = False
         print("REF")
         cmap_to_use = radarscope_cmap
         data_min, data_max = min_dbz, max_dbz
@@ -144,8 +147,9 @@ def save_mrms_subset(bbox, type, output_path):
         crs=ccrs.PlateCarree()
     )
     
-    # Add state borders
-    ax.add_feature(cfeature.STATES.with_scale('50m'), linestyle='-', edgecolor='white')
+    # only add state borders if needed
+    if state_borders:
+        ax.add_feature(cfeature.STATES.with_scale('50m'), linestyle='-', edgecolor='white')
 
     # Plot the some mrms data
     im = ax.pcolormesh(
@@ -155,11 +159,14 @@ def save_mrms_subset(bbox, type, output_path):
     )
     
     #add colorbar
-    cbar = plt.colorbar(im, orientation = 'horizontal', pad=0.01, aspect=50,
-                        shrink = 0.65)
+    cbar = plt.colorbar(im, orientation = 'horizontal', pad=-0.1, aspect=20,
+                        shrink = 0.50)
     cbar.set_label(cbar_label, color="#7a7a7a", fontsize=12, weight='bold')
 
     # save figure
+    valid_time = ds.time.dt.strftime('%Y-%m-%d %H:%M:%S UTC').item()
+    valid_time_short = ds.time.dt.strftime('%H:%M UTC').item() #for showing on the graphic
+    output_path = (f'mrms_stuff/{valid_time}_{cbar_label}'.replace(" ", "_").replace(":", "")) #filenames cant have ":", replace with a space
     print(f"Saving image to {output_path}...")
     plt.savefig(
         output_path,
@@ -168,10 +175,7 @@ def save_mrms_subset(bbox, type, output_path):
         bbox_inches='tight',      # Remove whitespace padding
         pad_inches=0              # Remove padding
     )
-    valid_time = ds.time.dt.strftime('%Y-%m-%d %H:%M:%S UTC').item()
     print(valid_time)
-    valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
-
     
     plt.close(fig) # Close the figure to free up memory
     os.remove("latest.grib2")
@@ -189,10 +193,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -82,
-        "lon_max": -79,
-        "lat_min": 27,
-        "lat_max": 29
+        "lon_min": -105,
+        "lon_max": -95,
+        "lat_min": 32,
+        "lat_max": 39
     }
 
-    save_mrms_subset(test_bbox, "Flash Flood Warning", 'mrms_stuff/test_ref')
+    save_mrms_subset(test_bbox, "Flash Flood Warning", True)
