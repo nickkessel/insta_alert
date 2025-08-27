@@ -189,7 +189,6 @@ test_alert = {
                 }
             }
         }
-
 test_alert2 = { #cincy one
             "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
             "type": "Feature",
@@ -316,7 +315,6 @@ test_alert2 = { #cincy one
                 }
             }
         }
-
 test_alert3 = { #north burbs one
             "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
             "type": "Feature",
@@ -616,10 +614,10 @@ def plot_alert_polygon(alert, output_path):
 
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
-        ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5)
-        ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e")
-        interstates_all.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree())
-        federal_roads_all.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree())
+        ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
+        ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
+        interstates_all.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
+        federal_roads_all.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 3)
         
         if alert_type == "Severe Thunderstorm Warning":
             fig.set_facecolor('yellow')
@@ -681,7 +679,7 @@ def plot_alert_polygon(alert, output_path):
         #print(f'total cities available: {len(df_large)}')
         print(f'cities in view: {len(visible_cities_df)}')
         #TESTING!!
-        radar_valid_time = save_mrms_subset(map_region2, alert_type, False)
+        radar_valid_time, radar_image_path = save_mrms_subset(map_region2, alert_type, False)
         
         
         #plot cities
@@ -700,7 +698,7 @@ def plot_alert_polygon(alert, output_path):
                 continue
             #actually plot city
             
-            scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".")
+            scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".", zorder = 5) #city marker icons
             if city_pop > 60000:
                 name = city['city_ascii'].upper()
                 fontsize = 12
@@ -725,7 +723,7 @@ def plot_alert_polygon(alert, output_path):
                 fontfamily='monospace', fontsize=fontsize, weight=weight,
                 fontstretch='ultra-condensed', ha='center', va='bottom',
                 c=color, transform=ccrs.PlateCarree(), clip_on=True,
-                backgroundcolor=bgcolor
+                backgroundcolor=bgcolor, zorder = 5
             )
             text_artist.set_clip_box(clip_box)
             text_artist.set_path_effects([PathEffects.withStroke(linewidth=3, foreground='white'), PathEffects.Normal()])
@@ -757,33 +755,34 @@ def plot_alert_polygon(alert, output_path):
                 transform=ax.transAxes, ha='left', va='bottom', 
                 fontsize=7, backgroundcolor="#eeeeeecc")
         
-        #draw radar data in bg
-        mrms_img = mpimg.imread('mrms_stuff/test0.png') #need to update this to be a relative, changing location not a fixed 1!!!
-        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 2)
+        #draw radar data in bg, only above the polygon
+        mrms_img = mpimg.imread(radar_image_path) #need to update this to be a relative, changing location not a fixed 1!!!
+        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
         
         # Draw the polygon
         if geom.geom_type == 'Polygon':
             if alert_type == "Severe Thunderstorm Warning":
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
-                ax.fill(x, y, facecolor='#ffff0050')
+                ax.plot(x, y, color='black', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor='#ffff0050', zorder = 0)
             elif alert_type == 'Tornado Warning':
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
-                ax.fill(x, y, facecolor="#ff000050")
+                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor="#ff000050", zorder = 0)
             elif alert_type == 'Flash Flood Warning':
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
-                ax.fill(x, y, facecolor = "#00ff2f50", zorder = 1)
+                ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor = "#00ff2f50", zorder = 0)
             else:
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 1)
-                ax.fill(x, y, facecolor = "#8e8e8e49")  
+                ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor = "#8e8e8e49", zorder = 0)  
                   
         elif geom.geom_type == 'MultiPolygon':
             for poly in geom.geoms:
                 x, y = poly.exterior.xy
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree())
+                print("how is there a multipolygon warning?? should look at this...")
+                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
         
         #box to show info about hazards like hail/wind if applicable
         maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
