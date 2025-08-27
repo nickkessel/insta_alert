@@ -42,7 +42,7 @@ normalized_stops = [
 radarscope_cmap = LinearSegmentedColormap.from_list("radarscope", normalized_stops)
 
 #inches, (R G B)
-stops2 = [ #good color scale
+stops2 = [ #QPE colorscale, 0 to 6"
     (0.0,  (0, 0, 0, 0)),         
     (0.01, (68, 166, 255, 120)),
     (0.1,  (155, 255, 155, 255)), 
@@ -63,6 +63,31 @@ normalized_stops2 = [
 ]
 # Create the colormap
 qpe_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops2)
+
+#inches, (R G B)
+stops3 = [ #gQPE colorscale 0-4"
+    (0.0,  (0, 0, 0, 0)),         
+    (0.01, (68, 166, 255, 120)),
+    (0.1,    (155, 255, 155, 255)),
+    (0.5,    (0, 200, 0, 255)),
+    (1.0,    (255, 255, 0, 255)),
+    (1.5,    (255, 128, 0, 255)),
+    (2.0,    (255, 64, 0, 255)),
+    (2.5,    (255, 0, 0, 255)),
+    (3.0,    (210, 0, 45, 255)),
+    (3.5,    (150, 0, 75, 255)),
+    (4.0,    (255, 0, 255, 255)),
+]
+
+# Normalize dBZ values to 0–1 for matplotlib
+min_val3 = stops3[0][0]
+max_val3 = stops3[-1][0]
+normalized_stops3 = [
+    ((level - min_val3) / (max_val3 - min_val3), tuple(c/255 for c in color))
+    for level, color in stops3
+]
+# Create the colormap
+qpe2_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops3)
 
 valid_time = 0
 def save_mrms_subset(bbox, type, state_borders):
@@ -87,8 +112,8 @@ def save_mrms_subset(bbox, type, state_borders):
         url = qpe1hr_url
         convert_units = True
         print("QPE")
-        cmap_to_use = qpe_cmap
-        data_min, data_max = min_val2, max_val2
+        cmap_to_use = qpe2_cmap
+        data_min, data_max = min_val3, max_val3
         cbar_label = "Radar Estimated Precipitation (1h)"
     else:
         url = ref_url
@@ -166,7 +191,7 @@ def save_mrms_subset(bbox, type, state_borders):
     # save figure
     valid_time = ds.time.dt.strftime('%Y-%m-%d %H:%M:%S UTC').item()
     valid_time_short = ds.time.dt.strftime('%H:%M UTC').item() #for showing on the graphic
-    output_path = (f'mrms_stuff/{valid_time}_{cbar_label}'.replace(" ", "_").replace(":", "")) #filenames cant have ":", replace with a space
+    output_path = (f'mrms_stuff/{valid_time}_{cbar_label}.png'.replace(" ", "_").replace(":", "")) #filenames cant have ":", replace with a space
     print(f"Saving image to {output_path}...")
     plt.savefig(
         output_path,
@@ -180,8 +205,8 @@ def save_mrms_subset(bbox, type, state_borders):
     plt.close(fig) # Close the figure to free up memory
     os.remove("latest.grib2")
     os.remove("latest.grib2.5b7b6.idx") # Clean up the downloaded files
-    print("Done.")
-    return valid_time_short
+    print(f"MRMS image saved.")
+    return valid_time_short, output_path
 
 
 if __name__ == '__main__':
@@ -193,10 +218,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -105,
-        "lon_max": -95,
-        "lat_min": 32,
-        "lat_max": 39
+        "lon_min": -97,
+        "lon_max": -92,
+        "lat_min": 34,
+        "lat_max": 37
     }
 
     save_mrms_subset(test_bbox, "Flash Flood Warning", True)

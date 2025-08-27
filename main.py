@@ -49,9 +49,10 @@ load_dotenv()
     #use the "references" field in the json to check, maybe?  
     #for svr warnings expiring, if there is no wind/hail value, then it is a cancellation
 #optimisations!! once everything is working, make it fast. cache as much as possible, especially the city names csv, only have my region cities
-                                                              
+#TODO: add to caption if an alert has been upgraded (This warning has been UPGRADED)
+#TODO: add support for snow squall, special weather, dust storms                                                              
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
-FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")                 
+FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"      
                                                               
 # Define your area by zone or county                          
@@ -62,13 +63,13 @@ target_bbox = { #this is the area that is being scanned for alerts as well
         "lat_max": 39.664914
     } 
 test_bbox = {
-        "lon_min": -114,
-        "lon_max": -112,
-        "lat_min": 34,
-        "lat_max": 36
+        "lon_min": -125,
+        "lon_max": -85,
+        "lat_min": 30,
+        "lat_max": 45
 }
 
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning"]
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning"] 
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
