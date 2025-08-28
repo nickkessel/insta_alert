@@ -12,3 +12,4 @@ Requests==2.32.5
 Shapely==2.1.1
 siphon==0.10.0
 xarray==2025.8.0
+cfgrib==0.9.15.0
