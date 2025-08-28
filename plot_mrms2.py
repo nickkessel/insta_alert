@@ -7,10 +7,14 @@ import cartopy.feature as cfeature
 import os
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
+import glob
 
-#TODO: fix position of the colorbar/legend
+#TODO: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
-#TODO: scale imagery properly to the graphics - you can tell it's distorted by the strecthed text
+#TODO: Possible: Threading, and have save_mrms_subset running in the background every 2 minutes, 
+    #creating a national composite for both QPE and REF, that can then be accessed from other functions
+    #by passing in a bbox and getting that part of the image back.
+
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [
@@ -207,6 +211,75 @@ def save_mrms_subset(bbox, type, state_borders):
     os.remove("latest.grib2.5b7b6.idx") # Clean up the downloaded files
     print(f"MRMS image saved.")
     return valid_time_short, output_path
+
+def get_mrms_data(bbox, type):
+    """
+    Fetches and subsets the latest MRMS data.
+
+    Returns:
+        A tuple containing the subsetted xarray dataset, the appropriate colormap,
+        vmin, vmax, colorbar label, and the valid time string.
+    """
+    ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
+    qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
+    grib_file = 'latest.grib2'
+    try:
+        if type == "Flash Flood Warning":
+            url = qpe1hr_url
+            convert_units = True
+            cmap_to_use = qpe2_cmap
+            data_min, data_max = min_val3, max_val3
+            cbar_label = "Radar Estimated Precipitation (1h)"
+        else:
+            url = ref_url
+            convert_units = False
+            cmap_to_use = radarscope_cmap
+            data_min, data_max = min_dbz, max_dbz
+            cbar_label = "Reflectivity (dBZ)"
+        
+        print(f"Fetching data from {url}")
+        # Download and write file
+        response = requests.get(url, timeout=30)
+        response.raise_for_status() # Raises an exception for bad status codes (4xx or 5xx)
+        grib_content = gzip.decompress(response.content)
+        with open(grib_file, "wb") as f:
+            f.write(grib_content)
+
+        # Open dataset with xarray
+        # The decode_timedelta=False argument silences the FutureWarning
+        ds = xr.open_dataset(grib_file, engine="cfgrib", backend_kwargs={'decode_timedelta': False})
+
+        # Subset data
+        lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
+        lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
+        subset = ds.sel(latitude=lat_slice, longitude=lon_slice)
+
+        if subset.unknown.size == 0:
+            print("Error: Data subset is empty.")
+            return None, None, None, None, None, None
+        
+        if convert_units:
+            subset['unknown'] = subset['unknown'] / 25.4
+
+        valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+        ds.close()
+
+        return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
+
+    except Exception as e:
+        # Catch any exception during download, write, or read
+        print(f"An error occurred in get_mrms_data: {e}")
+        return None, None, None, None, None, None
+
+    finally:
+        # This block ALWAYS runs, ensuring files are cleaned up
+        if os.path.exists(grib_file):
+            print(" i")
+            #os.remove(grib_file)
+        # Use glob to find and remove any matching index files
+        for idx_file in glob.glob(f"{grib_file}*.idx"):
+            if os.path.exists(idx_file):
+                os.remove(idx_file)
 
 
 if __name__ == '__main__':

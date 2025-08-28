@@ -19,7 +19,13 @@ import time
 from siphon.catalog import TDSCatalog
 import xarray as xr
 from colorama import Back, Fore, Style
-from plot_mrms2 import save_mrms_subset
+from plot_mrms2 import save_mrms_subset, get_mrms_data
+
+#TODO: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
+#TODO: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
+    #everything, but the imagery still plots towards the bottom. 
+#TODO: wider polygon borders for more intense (destructive/tor-e) warnings
+#TODO: consider shrinking hazards box when theres more than x (3?4?) things in there
 
 #reader = shpreader.Reader('countyl010g.shp')
 #counties = list(reader.geometries())
@@ -39,529 +45,6 @@ interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
 #interstates.to_csv('interstates_filtered.csv')
 
-test_alert = {
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            -80.28,
-                            26.77
-                        ],
-                        [
-                            -80.44,
-                            26.7399999
-                        ],
-                        [
-                            -80.53,
-                            26.96
-                        ],
-                        [
-                            -80.2,
-                            26.96
-                        ],
-                        [
-                            -80.15,
-                            26.82
-                        ],
-                        [
-                            -80.28,
-                            26.77
-                        ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "areaDesc": "Palm Beach, FL",
-                "geocode": {
-                    "SAME": [
-                        "012099"
-                    ],
-                    "UGC": [
-                        "FLC099"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/FLC099"
-                ],
-                "references": [],
-                "sent": "2025-05-23T15:26:00-04:00",
-                "effective": "2025-05-23T15:26:00-04:00",
-                "onset": "2025-05-23T15:26:00-04:00",
-                "expires": "2025-05-23T16:00:00-04:00",
-                "ends": "2025-05-23T16:00:00-04:00",
-                "status": "Actual",
-                "messageType": "Alert",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Observed",
-                "urgency": "Immediate",
-                "event": "Severe Thunderstorm Warning",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Miami FL",
-                "headline": "Severe Thunderstorm Warning issued May 23 at 3:26PM EDT until May 23 at 4:00PM EDT by NWS Miami FL",
-                "description": "SVRMFL\n\nThe National Weather Service in Miami has issued a\n\n* Severe Thunderstorm Warning for...\nNortheastern Palm Beach County in southeastern Florida...\n\n* Until 400 PM EDT.\n\n* At 326 PM EDT, a severe thunderstorm was located near Indiantown,\nmoving southeast at 20 mph.\n\nHAZARD...Ping pong ball size hail and 60 mph wind gusts.\n\nSOURCE...Radar indicated.\n\nIMPACT...People and animals outdoors will be injured. Expect hail\ndamage to roofs, siding, windows, and vehicles. Expect\nwind damage to roofs, siding, and trees.\n\n* Locations impacted include...\nWest Palm Beach, Palm Beach Gardens, North County Airport, The\nAcreage, Caloosa, and Jupiter Farms.",
-                "instruction": "Remain alert for a possible tornado! Tornadoes can develop quickly\nfrom severe thunderstorms. If you spot a tornado go at once into a\nsmall central room in a sturdy structure.\n\nFor your protection move to an interior room on the lowest floor of a\nbuilding.",
-                "response": "Shelter",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "SVRMFL"
-                    ],
-                    "WMOidentifier": [
-                        "WUUS52 KMFL 231926"
-                    ],
-                    "eventMotionDescription": [
-                        "2025-05-23T19:26:00-00:00...storm...323DEG...16KT...26.97,-80.42"
-                    ],
-                    "windThreat": [
-                        "RADAR INDICATED"
-                    ],
-                    "maxWindGust": [
-                        "60 MPH"
-                    ],
-                    "hailThreat": [
-                        "OBSERVED"
-                    ],
-                    "maxHailSize": [
-                        "1.50"
-                    ],
-                    "tornadoDetection": [
-                        "POSSIBLE"
-                    ],
-                    "thunderstormDamageThreat": [
-                      "DESTRUCTIVE"  
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.NEW.KMFL.SV.W.0047.250523T1926Z-250523T2000Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-05-23T16:00:00-04:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "SVR"
-                    ],
-                    "NationalWeatherService": [
-                        "SVW"
-                    ]
-                }
-            }
-        }
-test_alert2 = { #cincy one
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            -84.41,
-                            39.26
-                        ],
-                        [
-                            -84.33,
-                            39.16
-                        ],
-                        [
-                            -84.36,
-                            39.04
-                        ],
-                        [
-                            -84.62,
-                            39.02
-                        ],
-                        [
-                            -84.59,
-                            39.13
-                        ],
-                        [
-                            -84.62,
-                            39.23
-                        ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "areaDesc": "Cincinnati, OH",
-                "geocode": {
-                    "SAME": [
-                        "012099"
-                    ],
-                    "UGC": [
-                        "OHZ077"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/OHZ077"
-                ],
-                "references": [],
-                "sent": "2025-05-24T15:26:00-04:00",
-                "effective": "2025-05-24T15:26:00-04:00",
-                "onset": "2025-05-24T15:26:00-04:00",
-                "expires": "2025-05-24T16:00:00-04:00",
-                "ends": "2025-05-24T16:00:00-04:00",
-                "status": "Actual",
-                "messageType": "Alert",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Observed",
-                "urgency": "Immediate",
-                "event": "Severe Thunderstorm Warning",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Wilmington OH",
-                "headline": "Severe Thunderstorm Warning issued May 24 at 3:26PM EDT until May 24 at 4:00PM EDT by NWS Wilmington OH",
-                "description": "SVRMFL\n\nThe National Weather Service in Wilmington has issued a\n\n* Severe Thunderstorm Warning for...\nNortheastern Palm Beach County in southeastern Florida...\n\n* Until 400 PM EDT.\n\n* At 326 PM EDT, a severe thunderstorm was located near Indiantown,\nmoving southeast at 20 mph.\n\nHAZARD...Ping pong ball size hail and 60 mph wind gusts.\n\nSOURCE...Radar indicated.\n\nIMPACT...People and animals outdoors will be injured. Expect hail\ndamage to roofs, siding, windows, and vehicles. Expect\nwind damage to roofs, siding, and trees.\n\n* Locations impacted include...\nWest Palm Beach, Palm Beach Gardens, North County Airport, The\nAcreage, Caloosa, and Jupiter Farms.",
-                "instruction": "Remain alert for a possible tornado! Tornadoes can develop quickly\nfrom severe thunderstorms. If you spot a tornado go at once into a\nsmall central room in a sturdy structure.\n\nFor your protection move to an interior room on the lowest floor of a\nbuilding.",
-                "response": "Shelter",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "SVRMFL"
-                    ],
-                    "WMOidentifier": [
-                        "WUUS52 KMFL 231926"
-                    ],
-                    "eventMotionDescription": [
-                        "2025-05-23T19:26:00-00:00...storm...323DEG...16KT...26.97,-80.42"
-                    ],
-                    "windThreat": [
-                        "RADAR INDICATED"
-                    ],
-                    "maxWindGust": [
-                        "90 MPH"
-                    ],
-                    "thunderstormDamageThreat": [
-                        "DESTRUCTIVE"
-                    ],
-                    "hailThreat": [
-                        "OBSERVED"
-                    ],
-                    "maxHailSize": [
-                        "4.50"
-                    ],
-                    "tornadoDetection": [
-                        "POSSIBLE"
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.NEW.KMFL.SV.W.0047.250523T1926Z-250523T2000Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-05-23T16:00:00-04:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "SVR"
-                    ],
-                    "NationalWeatherService": [
-                        "SVW"
-                    ]
-                }
-            }
-        }
-test_alert3 = { #north burbs one
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            -84.064,
-                            39.500091
-                        ],
-                        [
-                            -84.03168,
-                            39.30133
-                        ],
-                        [
-                            -84.38873,
-                            39.30133
-                        ],
-                        [
-                            -84.41620,
-                            39.29907
-                        ],
-                        [
-                            -84.39514,
-                            39.42216
-                        ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
-                "areaDesc": "Cincinnati, OH",
-                "geocode": {
-                    "SAME": [
-                        "012099"
-                    ],
-                    "UGC": [
-                        "OHZ077"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/OHZ077"
-                ],
-                "references": [],
-                "sent": "2025-05-24T15:26:00-04:00",
-                "effective": "2025-05-24T15:26:00-04:00",
-                "onset": "2025-05-24T15:26:00-04:00",
-                "expires": "2025-05-24T16:00:00-04:00",
-                "ends": "2025-05-24T16:00:00-04:00",
-                "status": "Actual",
-                "messageType": "Alert",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Observed",
-                "urgency": "Immediate",
-                "event": "Tornado Warning",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Wilmington OH",
-                "headline": "Severe Thunderstorm Warning issued May 24 at 3:26PM EDT until May 24 at 4:00PM EDT by NWS Wilmington OH",
-                "description": "SVRMFL\n\nThe National Weather Service in Wilmington has issued a\n\n* Severe Thunderstorm Warning for...\nNortheastern Palm Beach County in southeastern Florida...\n\n* Until 400 PM EDT.\n\n* At 326 PM EDT, a severe thunderstorm was located near Indiantown,\nmoving southeast at 20 mph.\n\nHAZARD...Ping pong ball size hail and 60 mph wind gusts.\n\nSOURCE...Radar indicated.\n\nIMPACT...People and animals outdoors will be injured. Expect hail\ndamage to roofs, siding, windows, and vehicles. Expect\nwind damage to roofs, siding, and trees.\n\n* Locations impacted include...\nWest Palm Beach, Palm Beach Gardens, North County Airport, The\nAcreage, Caloosa, and Jupiter Farms.",
-                "instruction": "Remain alert for a possible tornado! Tornadoes can develop quickly\nfrom severe thunderstorms. If you spot a tornado go at once into a\nsmall central room in a sturdy structure.\n\nFor your protection move to an interior room on the lowest floor of a\nbuilding.",
-                "response": "Shelter",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "SVRMFL"
-                    ],
-                    "WMOidentifier": [
-                        "WUUS52 KMFL 231926"
-                    ],
-                    "eventMotionDescription": [
-                        "2025-05-23T19:26:00-00:00...storm...323DEG...16KT...26.97,-80.42"
-                    ],
-                    "hailThreat": [
-                        "OBSERVED"
-                    ],
-                    "maxHailSize": [
-                        "1.00"
-                    ],
-                    "tornadoDamageThreat": [
-                      "CATASTROPHIC"  
-                    ],
-                    "tornadoDetection": [
-                        "OBSERVED"
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.NEW.KMFL.SV.W.0047.250523T1926Z-250523T2000Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-05-23T16:00:00-04:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "SVR"
-                    ],
-                    "NationalWeatherService": [
-                        "SVW"
-                    ]
-                }
-            }
-        }
-test_alert4 =  { #ffw
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                        [
-                            -84.46289,
-                            39.118
-                        ],
-                        [
-                            -84.438,
-                            39.07933
-                        ],
-                        [
-                            -84.31732,
-                            39.11132
-                        ],
-                        [
-                            -84.21021,
-                            39.19654
-                        ],
-                        [
-                            -84.21661,
-                            39.29605
-                        ],
-                        [
-                            -84.20471,
-                            39.40704
-                        ],
-                        [
-                            -84.26102,
-                            39.42296
-                        ],
-                        [
-                            -84.30496,
-                            39.42296
-                        ],
-                        [
-                            -84.3132,
-                            39.2859
-                        ],
-                        [
-                            -84.31732,
-                            39.23061
-                        ],
-                        [
-                            -84.44092,
-                            39.14116
-                        ],
-                        [
-                            -84.45282,
-                            39.12011
-                        ],
-                        [
-                            -84.45190,
-                            39.14329
-                        ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "areaDesc": "Loveland, OH",
-                "geocode": {
-                    "SAME": [
-                        "035047"
-                    ],
-                    "UGC": [
-                        "NMC047"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/NMC047"
-                ],
-                "references": [
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T12:54:00-06:00"
-                    },
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T13:51:00-06:00"
-                    }
-                ],
-                "sent": "2025-06-09T15:14:00-06:00",
-                "effective": "2025-06-09T15:14:00-06:00",
-                "onset": "2025-06-09T15:14:00-06:00",
-                "expires": "2025-06-09T16:00:00-06:00",
-                "ends": "2025-06-09T16:00:00-06:00",
-                "status": "Actual",
-                "messageType": "Update",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Likely",
-                "urgency": "Immediate",
-                "event": "Flash Flood Warning",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Wilmington OH",
-                "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
-                "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
-                "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
-                "response": "Avoid",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "FFSABQ"
-                    ],
-                    "WMOidentifier": [
-                        "WGUS75 KABQ 092114"
-                    ],
-                    "NWSheadline": [
-                        "FLASH FLOOD WARNING FOR THE HERMITS PEAK AND CALF CANYON BURN SCAR REMAINS IN EFFECT UNTIL 4 PM MDT THIS AFTERNOON FOR NORTHWESTERN SAN MIGUEL COUNTY"
-                    ],
-                    "flashFloodDetection": [
-                        "RADAR INDICATED"
-                    ],
-                    "flashFloodDamageThreat": [
-                        "CONSIDERABLE"
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.CON.KABQ.FF.W.0031.000000T0000Z-250609T2200Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-06-09T16:00:00-06:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "FFS"
-                    ],
-                    "NationalWeatherService": [
-                        "FFW"
-                    ]
-                }
-            }
-        }
 
 def plot_alert_polygon(alert, output_path):
     plot_start_time = time.time()
@@ -649,7 +132,24 @@ def plot_alert_polygon(alert, output_path):
         #print(map_region)
         ax.set_extent(map_region)
         clip_box = ax.get_window_extent() #for the text on screen
-
+        #NEW: plotting MRMS data here
+        print("calling get_mrms_data")
+        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data(map_region2, alert_type)
+        print("data got")
+        #directly plot the MRMS data onto the main axes (and colorbar, seperately)
+        if subset is not None:
+            im = ax.pcolormesh(
+                subset.longitude, subset.latitude, subset.unknown,
+                transform=ccrs.PlateCarree(),
+                cmap=cmap, vmin=vmin, vmax=vmax, zorder=1
+            )
+            # Add the colorbar directly to the main figure
+            cbar = fig.colorbar(im, ax=ax, orientation='vertical', shrink=0.75, aspect=20, pad=0.02)
+            cbar.set_label(cbar_label, color="#7a7a7a", fontsize=10, weight='bold')
+            cbar.ax.tick_params(labelsize=8)
+        else:
+            print("skipping plotting radar, no data returned from get_mrms_data")
+        
         #filter for only cities in map view
         visible_cities_df = df_large[
             (df_large['lng'] >= minx) & (df_large['lng'] <= maxx) &
@@ -659,7 +159,7 @@ def plot_alert_polygon(alert, output_path):
         #print(f'total cities available: {len(df_large)}')
         print(f'cities in view: {len(visible_cities_df)}')
         #TESTING!!
-        radar_valid_time, radar_image_path = save_mrms_subset(map_region2, alert_type, False)
+        #radar_valid_time, radar_image_path = save_mrms_subset(map_region2, alert_type, False)
         
         
         #plot cities
@@ -730,39 +230,45 @@ def plot_alert_polygon(alert, output_path):
 
         ax.text(0.01, 0.95, f"Issued {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='bottom', 
-                fontsize=10, backgroundcolor="#eeeeeecc") #plotting this down here so it goes on top of city names
-        ax.text(0.80, 0.97, f"Radar data valid {radar_valid_time}", #radar time
-                transform=ax.transAxes, ha='left', va='bottom', 
-                fontsize=7, backgroundcolor="#eeeeeecc")
+                fontsize=10, backgroundcolor="#eeeeeecc", zorder = 6) #plotting this down here so it goes on top of city names
+        ax.text(0.97, 0.97, f"Radar data valid {radar_valid_time}", #radar time
+                transform=ax.transAxes, ha='right', va='top', 
+                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 6)
         
         #draw radar data in bg, only above the polygon
-        mrms_img = mpimg.imread(radar_image_path) #need to update this to be a relative, changing location not a fixed 1!!!
-        ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
+        #mrms_img = mpimg.imread(radar_image_path) 
+        #ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
         
         # Draw the polygon
         if geom.geom_type == 'Polygon':
             if alert_type == "Severe Thunderstorm Warning":
                 x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.plot(x, y, color='yellow', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor='#ffff0050', zorder = 0)
             elif alert_type == 'Tornado Warning':
                 x, y = geom.exterior.xy
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor="#ff000050", zorder = 0)
             elif alert_type == 'Flash Flood Warning':
                 x, y = geom.exterior.xy
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor = "#00ff2f50", zorder = 0)
             elif alert_type == 'Special Weather Statement':
                 x, y = geom.exterior.xy
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.plot(x, y, color='#ff943d', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor = "#ff943d50", zorder = 0)
             elif alert_type == 'Special Marine Warning':
                 x, y = geom.exterior.xy
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.plot(x, y, color='#009691', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor = "#00969150", zorder = 0)
             else:
                 x, y = geom.exterior.xy
+                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor = "#8e8e8e49", zorder = 0)  
                   

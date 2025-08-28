@@ -55,6 +55,7 @@ load_dotenv()
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
+#TODO: figure out why it is so slow when you first start running the script
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"      
@@ -62,7 +63,7 @@ WEBHOOKS = ['https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqO
 
 #toggles
 FACEBOOK = False
-DISCORD = True
+DISCORD = False
 USE_TEST_BBOX = True
 
 # Define your area by zone or county                          
@@ -79,17 +80,16 @@ test_bbox = {
         "lat_max": 55
 }
 
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "Special Weather Statement", "Special Marine Warning"] 
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning"] 
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
 
-#FIX TO JUST TRISTATE AREA!!!! will be faster 
-
 df_large = pd.read_csv('filtered_cities_all.csv')
 logo_path= 'cincyweathernobg.png'
 logo = mpimg.imread(logo_path)
+required_folders = ['graphics', 'mrms_stuff']
 
 roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
 
@@ -133,8 +133,8 @@ def get_nws_alerts():
             if event_type in warning_types and any_point_in_bbox(geometry, actual_bbox):
                 print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
                 filtered_alerts.append(alert)
-            else:
-                print(f'{event_type} not in zone')
+            #else:
+                #print(f'{event_type} not in zone')
 
         print(f"Returning {len(filtered_alerts)} filtered alerts")
         return filtered_alerts
@@ -194,9 +194,6 @@ def post_to_facebook(message, img_path): #message is string & img is https url r
     except requests.RequestException as e:
         print(Fore.RED + f"Error creating post: {e}" + Fore.RESET)
         print(Fore.RED + f"Response: {e.response.text}" + Fore.RESET)
-
-
-#post_to_facebook("testing, testing", "https://plsn.com/site/wp-content/uploads/fig-2.-1920px-SMPTE_Color_Bars_16x9.png")
 
 def clean_filename(name):
     return re.sub(r'[<>:"/\\|?*.]', '', name)
@@ -296,6 +293,9 @@ def main():
         print(Fore.LIGHTCYAN_EX + f'End scan for alerts - all gfx generated or previously handled. Rescan in {check_time}s')
         time.sleep(check_time)  # Check every x seconds
 
+for folder in required_folders:
+    print(f"checking for required folder: {folder}")
+    os.makedirs(folder, exist_ok= True)
 main()
 
 '''
