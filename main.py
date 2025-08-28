@@ -21,6 +21,7 @@ import re
 from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
+from discord_webhook import DiscordWebhook, DiscordEmbed
 load_dotenv()
 
 #TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
@@ -49,12 +50,21 @@ load_dotenv()
     #use the "references" field in the json to check, maybe?  
     #for svr warnings expiring, if there is no wind/hail value, then it is a cancellation
 #optimisations!! once everything is working, make it fast. cache as much as possible, especially the city names csv, only have my region cities
-#TODO: add to caption if an alert has been upgraded (This warning has been UPGRADED)
-#TODO: add support for snow squall, special weather, dust storms                                                              
+#TODO: add to caption if an alert has been upgraded (This warning has been UPGRADED) (DK: was going to do this, however unsure if my idea would work with how the script parses this so far)
+#DONE add support for special weather statement/special marine warning                         
+#CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
+#(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
+#TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"      
-                                                              
+WEBHOOKS = ['https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU']
+
+#toggles
+FACEBOOK = False
+DISCORD = True
+USE_TEST_BBOX = True
+
 # Define your area by zone or county                          
 target_bbox = { #this is the area that is being scanned for alerts as well
         "lon_min": -85.124817,                                
@@ -63,13 +73,13 @@ target_bbox = { #this is the area that is being scanned for alerts as well
         "lat_max": 39.664914
     } 
 test_bbox = {
-        "lon_min": -125,
-        "lon_max": -85,
-        "lat_min": 30,
-        "lat_max": 45
+        "lon_min": -185,
+        "lon_max": -45,
+        "lat_min": 15,
+        "lat_max": 55
 }
 
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning"] 
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "Special Weather Statement", "Special Marine Warning"] 
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -114,17 +124,34 @@ def get_nws_alerts():
                     for lon, lat in points
                 )
                 return is_inside #true/false
+            
+            if USE_TEST_BBOX:
+                actual_bbox = test_bbox
+            else:
+                actual_bbox = target_bbox
 
-            if event_type in warning_types and any_point_in_bbox(geometry, test_bbox):
+            if event_type in warning_types and any_point_in_bbox(geometry, actual_bbox):
                 print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
                 filtered_alerts.append(alert)
+            else:
+                print(f'{event_type} not in zone')
 
         print(f"Returning {len(filtered_alerts)} filtered alerts")
         return filtered_alerts
     except requests.RequestException as e:
         print(f"Error fetching NWS alerts: {e}")
         return []
-    
+
+def log_to_discord(message, img_path):
+    webhook = DiscordWebhook(url=WEBHOOKS, content=message)
+    with open(img_path, 'rb') as f:
+        webhook.add_file(file=f.read(), filename='Alert.png')
+    try:
+        print(Fore.GREEN + "Sent to Discord webhook successfully!" + Fore.RESET)
+        response = webhook.execute()
+    except Exception as e:
+        print(Fore.RED + f"Error sending to webhook! {e}" + Fore.RESET)
+
 def post_to_facebook(message, img_path): #message is string & img is https url reference to .jpg or .png
     if not img_path:
         print('no image path provided')
@@ -249,10 +276,18 @@ def main():
                 print(Fore.LIGHTBLUE_EX + message)
                 print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
                 alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
-                path, statement = plot_alert_polygon(alert, alert_path)
-                print(statement)
-                #post_to_facebook(statement, alert_path)
-                posted_alerts.add(alert_id)
+                try: #try/except as we were getting incomplete file errors!
+                    path, statement = plot_alert_polygon(alert, alert_path)
+                    print(statement)
+                    if FACEBOOK:
+                        post_to_facebook(statement, alert_path)
+                    if DISCORD:
+                        log_to_discord(statement, alert_path)
+                    posted_alerts.add(alert_id)
+                except Exception as e:
+                    print(Fore.RED + f'An error occurred. Waiting 15 seconds then restarting.')
+                    time.sleep(10)
+                    continue
             elif alert_id in posted_alerts:
                 message = (
                     f"Alert already handled: {clickable_alert_id}"
