@@ -184,7 +184,7 @@ def save_mrms_subset(bbox, type, state_borders):
     )
     
     #add colorbar
-    cbar = plt.colorbar(im, orientation = 'horizontal', pad=-0.1, aspect=20,
+    cbar = plt.colorbar(im, orientation = 'vertical', pad=-0.1, aspect=20,  #you can add location='left' before orientation if you want to shift the colorbar to the other side
                         shrink = 0.50)
     cbar.set_label(cbar_label, color="#7a7a7a", fontsize=12, weight='bold')
 
