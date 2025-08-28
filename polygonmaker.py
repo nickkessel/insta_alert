@@ -39,30 +39,6 @@ interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
 #interstates.to_csv('interstates_filtered.csv')
 
-def get_nws_alerts():
-    try:
-        response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"})
-        response.raise_for_status()
-        alerts = response.json().get("features", [])
-        print(f"Fetched {len(alerts)} total alerts from NWS")
-
-        filtered_alerts = []
-        for alert in alerts:
-            properties = alert["properties"]
-            event_type = properties.get("event")
-            affected_zones = properties.get("geocode", {}).get("UGC", [])
-
-            if event_type in ["Tornado Warning", "Severe Thunderstorm Warning", "Beach Hazards Statement", "Special Weather Statement"] and any(zone in AREA_FILTERS for zone in affected_zones):
-                print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
-                filtered_alerts.append(alert)
-
-        print(f"Returning {len(filtered_alerts)} filtered alerts")
-        return filtered_alerts
-    except requests.RequestException as e:
-        print(f"Error fetching NWS alerts: {e}")
-        return []
-    
-
 test_alert = {
             "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.4b4047b48b827b1700a30d1222ab3d671c5072ea.001.1",
             "type": "Feature",
@@ -625,6 +601,10 @@ def plot_alert_polygon(alert, output_path):
             fig.set_facecolor('red') 
         elif alert_type == 'Flash Flood Warning':
             fig.set_facecolor('green')
+        elif alert_type == 'Special Weather Statement':
+            fig.set_facecolor("#ff943d")
+        elif alert_type == 'Special Marine Warning':
+            fig.set_facecolor("#009691")
         else:
             fig.set_facecolor("#b7b7b7")
                    
@@ -773,6 +753,14 @@ def plot_alert_polygon(alert, output_path):
                 x, y = geom.exterior.xy
                 ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
                 ax.fill(x, y, facecolor = "#00ff2f50", zorder = 0)
+            elif alert_type == 'Special Weather Statement':
+                x, y = geom.exterior.xy
+                ax.plot(x, y, color='#ff943d', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor = "#ff943d50", zorder = 0)
+            elif alert_type == 'Special Marine Warning':
+                x, y = geom.exterior.xy
+                ax.plot(x, y, color='#009691', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.fill(x, y, facecolor = "#00969150", zorder = 0)
             else:
                 x, y = geom.exterior.xy
                 ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
@@ -792,16 +780,21 @@ def plot_alert_polygon(alert, output_path):
         tStormSeverity = alert['properties']['parameters'].get('thunderstormDamageThreat', ['n/a'])[0] 
         torSeverity = alert['properties']['parameters'].get('tornadoDamageThreat', ['n/a'])[0] #considerable for pds, not sure for tor-e. 
         floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
-        
+        snowSquallDetection = alert['properties']['parameters'].get('snowSquallDetection', ['n/a'])[0] #"RADAR INDICATED" or "OBSERVED"
+        snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
+        waterspoutDetection = alert['properties']['parameters'].get('waterspoutDetection', ['n/a'])[0] #"OBSERVED" or "POSSIBLE"
         
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
             (maxHail, 'Max. Hail Size', "in"),
+            (floodSeverity, 'Damage Threat', ""),
+            (tStormSeverity, 'Damage Threat', ""),
+            (torSeverity, 'Damage Threat', ""),
+            (snowSquallImpact, 'Impact', ""),
             (torDetection, 'Tornado', ""),
-            (floodSeverity, 'Flood Threat', ""),
-            (tStormSeverity, 'Severe Threat', ""),
-            (torSeverity, 'Tornado Threat', ""),
-            (floodDetection, 'Source', "")
+            (waterspoutDetection, 'Waterspout', ""),
+            (snowSquallDetection, 'Snow Squall', ""),
+            (floodDetection, 'Flash Flood', "")
         ]
         details_text_lines = []
         for value, label, suffix in hazard_details:
@@ -815,22 +808,37 @@ def plot_alert_polygon(alert, output_path):
         
         if tStormSeverity == 'DESTRUCTIVE': #need to check this is what pds/tor-e have as their tags
             pdsBox = ax.text(0.5, 0.85, "This is a DESTRUCTIVE THUNDERSTORM!! \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#ffffff',
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
                 fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
+            ax.add_artist(pdsBox)
+        if torDetection == 'POSSIBLE': #for TOR possible SVR? Kinda cool idea
+            pdsBox = ax.text(0.5, 0.85, "A tornado is POSSIBLE with this storm!", 
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
+                fontsize=10, weight = 'bold', backgroundcolor="yellow", )
+            ax.add_artist(pdsBox)
+        if waterspoutDetection == 'POSSIBLE': #waterspouts
+            pdsBox = ax.text(0.5, 0.85, "A Waterspout is POSSIBLE with this storm!\nHead to shore immediately!", 
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
+                fontsize=10, weight = 'bold', backgroundcolor="#009691", )
+            ax.add_artist(pdsBox)
+        if waterspoutDetection == 'OBSERVED': #waterspouts
+            pdsBox = ax.text(0.5, 0.85, "Waterspouts have been observed with this storm!\nHead to shore immediately!", 
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
+                fontsize=10, weight = 'bold', backgroundcolor="#009691", )
             ax.add_artist(pdsBox)
         elif torSeverity == 'CONSIDERABLE':
             pdsBox = ax.text(0.5, 0.85, "This is a PATICULARLY DANGEROUS SITUATION!! \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#ffffff',
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
                 fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
             ax.add_artist(pdsBox)
         elif torSeverity == 'CATASTROPHIC':
             pdsBox = ax.text(0.5, 0.85, "This is a TORNADO EMERGENCY!! \n A large and extremely dangerous tornado is ongoing \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#ffffff',
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
                 fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
             ax.add_artist(pdsBox)
         elif floodSeverity == 'CATASTROPHIC':
             pdsBox = ax.text(0.5, 0.85, "This is a FLASH FLOOD EMERGENCY!! \n Get to higher ground NOW!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#ffffff',
+                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
                 fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
             ax.add_artist(pdsBox)
         
@@ -854,8 +862,9 @@ def plot_alert_polygon(alert, output_path):
         
         area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
+        if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
+            desc = desc + '\n' + alert['properties'].get('instruction', ['n/a']) # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         statement = (f"A {alert_type} has been issued, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} \n#cincywx #cincinnati #weather #ohwx #ohiowx #cincy #cincinnatiwx")
-        
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s")
