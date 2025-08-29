@@ -22,10 +22,12 @@ from colorama import Back, Fore, Style
 from plot_mrms2 import save_mrms_subset, get_mrms_data
 
 #TODO: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
-#TODO: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
+#DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
     #everything, but the imagery still plots towards the bottom. 
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
 #TODO: consider shrinking hazards box when theres more than x (3?4?) things in there
+#TODO: adjust city name boldness for readability
+#TODO: space out city names slightly more
 
 ''' 
 ZORDER STACK
