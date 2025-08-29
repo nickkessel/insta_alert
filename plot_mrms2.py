@@ -263,6 +263,7 @@ def get_mrms_data(bbox, type):
 
         valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
         ds.close()
+        subset.load()
 
         return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
 
@@ -272,10 +273,9 @@ def get_mrms_data(bbox, type):
         return None, None, None, None, None, None
 
     finally:
-        # This block ALWAYS runs, ensuring files are cleaned up
+        # This block always runs, ensuring files are cleaned up
         if os.path.exists(grib_file):
-            print(" i")
-            #os.remove(grib_file)
+            os.remove(grib_file)
         # Use glob to find and remove any matching index files
         for idx_file in glob.glob(f"{grib_file}*.idx"):
             if os.path.exists(idx_file):

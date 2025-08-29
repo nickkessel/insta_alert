@@ -27,6 +27,17 @@ from plot_mrms2 import save_mrms_subset, get_mrms_data
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
 #TODO: consider shrinking hazards box when theres more than x (3?4?) things in there
 
+''' 
+ZORDER STACK
+0 - polygon fill
+1 - radar imagery
+2 - county/state borders
+3 - roads
+4 - polygon border
+5 - city/town names
+7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
+'''
+
 #reader = shpreader.Reader('countyl010g.shp')
 #counties = list(reader.geometries())
 #COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
@@ -143,10 +154,26 @@ def plot_alert_polygon(alert, output_path):
                 transform=ccrs.PlateCarree(),
                 cmap=cmap, vmin=vmin, vmax=vmax, zorder=1
             )
-            # Add the colorbar directly to the main figure
+            '''this plots the colorbar off to the side (dont want)
             cbar = fig.colorbar(im, ax=ax, orientation='vertical', shrink=0.75, aspect=20, pad=0.02)
             cbar.set_label(cbar_label, color="#7a7a7a", fontsize=10, weight='bold')
             cbar.ax.tick_params(labelsize=8)
+            '''
+            # The list is [left, bottom, width, height] as fractions of the main plot area.
+            cax = ax.inset_axes([0.875, 0.17, 0.03, 0.75])
+            cax.set_facecolor('#0000004d')
+            
+            cbar = fig.colorbar(im, cax=cax, orientation = 'vertical')
+            cbar.set_label(cbar_label, color="#000000", fontsize=10, weight='bold')
+            label_text = cbar.ax.yaxis.get_label()
+            label_text.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'white')])
+
+            cbar.ax.tick_params(labelsize=8, color= 'white', labelcolor = 'white')
+            
+            for label in cbar.ax.get_yticklabels():
+                label.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'black')])
+                label.set_fontweight('heavy')
+            
         else:
             print("skipping plotting radar, no data returned from get_mrms_data")
         
@@ -158,10 +185,7 @@ def plot_alert_polygon(alert, output_path):
         
         #print(f'total cities available: {len(df_large)}')
         print(f'cities in view: {len(visible_cities_df)}')
-        #TESTING!!
-        #radar_valid_time, radar_image_path = save_mrms_subset(map_region2, alert_type, False)
-        
-        
+
         #plot cities
         fig.canvas.draw()
         text_candidates = []
@@ -182,19 +206,19 @@ def plot_alert_polygon(alert, output_path):
             if city_pop > 60000:
                 name = city['city_ascii'].upper()
                 fontsize = 12
-                weight = 'book'
+                weight = 'semibold'
                 color = "#222222"
                 bgcolor = '#ffffff00'
             elif city_pop > 10000:
                 name = city['city_ascii']
                 fontsize = 10
-                weight = 'light'
+                weight = 'semibold'
                 color = "#313131"
                 bgcolor = "#ffffff00"
             else:
                 name = city['city_ascii']
                 fontsize = 8
-                weight = 'light'
+                weight = 'semibold'
                 color = "#313131"
                 bgcolor = '#ffffff00'
 
@@ -206,7 +230,7 @@ def plot_alert_polygon(alert, output_path):
                 backgroundcolor=bgcolor, zorder = 5
             )
             text_artist.set_clip_box(clip_box)
-            text_artist.set_path_effects([PathEffects.withStroke(linewidth=3, foreground='white'), PathEffects.Normal()])
+            text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.5, foreground='white'), PathEffects.Normal()])
             text_candidates.append((text_artist, scatter, city_x, city_y, city['city_ascii'], city_pop))
             plotted_points.append((city_x, city_y))
         
@@ -228,12 +252,12 @@ def plot_alert_polygon(alert, output_path):
                 final_texts.append(text_artist)
                 #print(f'plotted {city_name}, population: {city_pop1}')
 
-        ax.text(0.01, 0.95, f"Issued {formatted_issued_time} by {issuing_office}", 
-                transform=ax.transAxes, ha='left', va='bottom', 
-                fontsize=10, backgroundcolor="#eeeeeecc", zorder = 6) #plotting this down here so it goes on top of city names
-        ax.text(0.97, 0.97, f"Radar data valid {radar_valid_time}", #radar time
+        ax.text(0.01, 0.985, f"Issued {formatted_issued_time} by {issuing_office}", 
+                transform=ax.transAxes, ha='left', va='top', 
+                fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
+        ax.text(0.99, 0.985, f"Radar data valid {radar_valid_time}", #radar time
                 transform=ax.transAxes, ha='right', va='top', 
-                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 6)
+                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 7)
         
         #draw radar data in bg, only above the polygon
         #mrms_img = mpimg.imread(radar_image_path) 
@@ -309,44 +333,50 @@ def plot_alert_polygon(alert, output_path):
                 details_text_lines.append(f"{label}: $\\bf{{{val_str}}}$")
 
         details_text = "\n".join(details_text_lines)
-        info_box = AnchoredText(details_text, loc=3, prop={'size': 12}, frameon=True)
+        info_box = AnchoredText(details_text, loc=3, prop={'size': 12}, frameon=True, zorder = 7)
         ax.add_artist(info_box)
         
-        if tStormSeverity == 'DESTRUCTIVE': #need to check this is what pds/tor-e have as their tags
-            pdsBox = ax.text(0.5, 0.85, "This is a DESTRUCTIVE THUNDERSTORM!! \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
-            ax.add_artist(pdsBox)
-        if torDetection == 'POSSIBLE': #for TOR possible SVR? Kinda cool idea
-            pdsBox = ax.text(0.5, 0.85, "A tornado is POSSIBLE with this storm!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="yellow", )
-            ax.add_artist(pdsBox)
-        if waterspoutDetection == 'POSSIBLE': #waterspouts
-            pdsBox = ax.text(0.5, 0.85, "A Waterspout is POSSIBLE with this storm!\nHead to shore immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#009691", )
-            ax.add_artist(pdsBox)
-        if waterspoutDetection == 'OBSERVED': #waterspouts
-            pdsBox = ax.text(0.5, 0.85, "Waterspouts have been observed with this storm!\nHead to shore immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#009691", )
-            ax.add_artist(pdsBox)
-        elif torSeverity == 'CONSIDERABLE':
-            pdsBox = ax.text(0.5, 0.85, "This is a PATICULARLY DANGEROUS SITUATION!! \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
-            ax.add_artist(pdsBox)
-        elif torSeverity == 'CATASTROPHIC':
-            pdsBox = ax.text(0.5, 0.85, "This is a TORNADO EMERGENCY!! \n A large and extremely dangerous tornado is ongoing \n Seek shelter immediately!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
-            ax.add_artist(pdsBox)
-        elif floodSeverity == 'CATASTROPHIC':
-            pdsBox = ax.text(0.5, 0.85, "This is a FLASH FLOOD EMERGENCY!! \n Get to higher ground NOW!", 
-                transform=ax.transAxes, ha='center', va='bottom', color = '#000000',
-                fontsize=10, weight = 'bold', backgroundcolor="#ff1717a7", )
-            ax.add_artist(pdsBox)
+        pdsBox = None
+        pdsBox_text = None
+        pdsBox_color = None
+        #set container contents, if applicable
+        if torSeverity == 'CATASTROPHIC':  # Tornado Emergency
+            pdsBox_text = "This is a TORNADO EMERGENCY!! \n A large and extremely dangerous tornado is ongoing \n Seek shelter immediately!"
+            pdsBox_color = "#ff1717a7"
+        elif floodSeverity == 'CATASTROPHIC':  # Flash Flood Emergency
+            pdsBox_text = "This is a FLASH FLOOD EMERGENCY!! \n Get to higher ground NOW!"
+            pdsBox_color = "#ff1717a7"
+        elif tStormSeverity == 'DESTRUCTIVE': #destructive tstorm
+            pdsBox_text = "This is a DESTRUCTIVE THUNDERSTORM!! \n Seek shelter immediately!"
+            pdsBox_color = "#ff1717a7"
+        elif torSeverity == 'CONSIDERABLE':  # PDS Tornado Warning
+            pdsBox_text = "This is a PATICULARLY DANGEROUS SITUATION!! \n Seek shelter immediately!"
+            pdsBox_color = "#ff1717a7"
+        elif torDetection == 'POSSIBLE':  # Tornado Possible tag on SVR
+            pdsBox_text = "A tornado is POSSIBLE with this storm!"
+            pdsBox_color = "yellow"
+        elif waterspoutDetection == 'OBSERVED':
+            pdsBox_text = "Waterspouts have been observed with this storm!\nHead to shore immediately!"
+            pdsBox_color = "#009691"
+        elif waterspoutDetection == 'POSSIBLE':
+            pdsBox_text = "A Waterspout is POSSIBLE with this storm!\nHead to shore immediately!"
+            pdsBox_color = "#009691"
+        
+        #create container
+        if pdsBox_text:
+            ax.text(
+                x=0.5,                            # Horizontal position (center)
+                y=0.85,                           # Vertical position (from bottom)
+                s=pdsBox_text,                   # The message text
+                transform=ax.transAxes,           # Use axes coordinates
+                ha='center',                      # Horizontal alignment
+                va='bottom',                      # Vertical alignment
+                color='#000000',                  # Text color
+                fontsize=10,
+                weight='bold',
+                backgroundcolor=pdsBox_color,    # The background color
+                zorder=7                          # Set z-order to be on top
+            )
         
         
         #add watermark
@@ -356,7 +386,8 @@ def plot_alert_polygon(alert, output_path):
             xy=(0.98, 0.02),
             xycoords= 'axes fraction',
             frameon=False,
-            box_alignment=(1,0)
+            box_alignment=(1,0),
+            zorder = 7
         )
         ax.add_artist(ab)
         
@@ -368,8 +399,13 @@ def plot_alert_polygon(alert, output_path):
         
         area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
+        instructions = alert['properties'].get('instruction', ['n/a'])
+        print(instructions)
+        
         if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
-            desc = desc + '\n' + alert['properties'].get('instruction', ['n/a']) # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
+            if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
+                desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
+        
         statement = (f"A {alert_type} has been issued, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} \n#cincywx #cincinnati #weather #ohwx #ohiowx #cincy #cincinnatiwx")
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
