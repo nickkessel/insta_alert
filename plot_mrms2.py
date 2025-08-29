@@ -14,11 +14,12 @@ import glob
 #TODO: Possible: Threading, and have save_mrms_subset running in the background every 2 minutes, 
     #creating a national composite for both QPE and REF, that can then be accessed from other functions
     #by passing in a bbox and getting that part of the image back.
+#TODO: fix eccodes error
 
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [
-    (-15, (0, 0, 0, 0)),
+    (0, (0, 0, 0, 0)),
     (5, (29, 37, 60)),
     (17.5, (89, 155, 171)),
     (22.5, (33, 186, 72)),
@@ -30,8 +31,8 @@ stops = [
     (70, (165, 2, 215)),    # to (64,0,146)
     (75, (135, 255, 253)),  # to (54,120,142)
     (80, (173, 99, 64)),
-    (85, (105, 0, 4)),
-    (95, (0, 0, 0)),
+    #(85, (105, 0, 4)),
+    #(95, (0, 0, 0)),
 ]
 
 # Normalize dBZ values to 0–1 for matplotlib
