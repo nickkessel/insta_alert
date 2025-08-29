@@ -251,7 +251,7 @@ def plot_alert_polygon(alert, output_path):
                 accepted_bboxes.append(bbox)
                 final_texts.append(text_artist)
                 #print(f'plotted {city_name}, population: {city_pop1}')
-
+ 
         ax.text(0.01, 0.985, f"Issued {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
