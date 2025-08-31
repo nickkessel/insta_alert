@@ -81,7 +81,7 @@ test_bbox = {
 }
 
 
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", "Special Weather Statement", "Special Marine Warning"] 
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flo2od Warning", "Special Weather Statement", "Special Marine Warning"] 
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()

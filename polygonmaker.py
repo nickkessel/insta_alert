@@ -65,8 +65,8 @@ ALERT_COLORS = {
         "fillalpha": "50"
     },
     "Special Marine Warning": {
-        "facecolor": "#009691", # teal
-        "edgecolor": "#007a75", # darker teal
+        "facecolor": "#00E4DD", # teal
+        "edgecolor": "#00cdc6", # darker teal
         "fillalpha": "50"
     },
     "default": {
@@ -384,10 +384,10 @@ def plot_alert_polygon(alert, output_path):
             pdsBox_color = "yellow"
         elif waterspoutDetection == 'OBSERVED':
             pdsBox_text = "Waterspouts have been observed with this storm!\nHead to shore immediately!"
-            pdsBox_color = "#009691"
+            pdsBox_color = colors['facecolor'] #cyan/teal if its an SMW
         elif waterspoutDetection == 'POSSIBLE':
             pdsBox_text = "A Waterspout is POSSIBLE with this storm!\nHead to shore immediately!"
-            pdsBox_color = "#009691"
+            pdsBox_color = colors['facecolor']
         
         #create container
         if pdsBox_text:
