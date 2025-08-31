@@ -9,7 +9,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import glob
 
-#TODO: fix scaling/distortion of the colorbar/legend
+#DONE: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
 #TODO: Possible: Threading, and have save_mrms_subset running in the background every 2 minutes, 
     #creating a national composite for both QPE and REF, that can then be accessed from other functions
@@ -49,8 +49,8 @@ radarscope_cmap = LinearSegmentedColormap.from_list("radarscope", normalized_sto
 #inches, (R G B)
 stops2 = [ #QPE colorscale, 0 to 6"
     (0.0,  (0, 0, 0, 0)),         
-    (0.01, (68, 166, 255, 120)),
-    (0.1,  (155, 255, 155, 255)), 
+    (0.01, (68, 166, 255, 75)),
+    (0.1,  (155, 255, 155, 200)), 
     (0.5,  (0, 200, 0, 255)),     
     (1.0,  (255, 255, 0, 255)),   
     (2.0,  (255, 128, 0, 255)),   
@@ -292,10 +292,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -97,
-        "lon_max": -92,
-        "lat_min": 34,
-        "lat_max": 37
+        "lon_min": -125,
+        "lon_max": -70,
+        "lat_min": 25,
+        "lat_max": 50
     }
 
-    save_mrms_subset(test_bbox, "Flash Flood Warning", True)
+    save_mrms_subset(test_bbox, "Flash Flood Warnindg", True)

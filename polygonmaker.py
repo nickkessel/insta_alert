@@ -20,14 +20,17 @@ from siphon.catalog import TDSCatalog
 import xarray as xr
 from colorama import Back, Fore, Style
 from plot_mrms2 import save_mrms_subset, get_mrms_data
+import re
 
 #TODO: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
     #everything, but the imagery still plots towards the bottom. 
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
-#TODO: consider shrinking hazards box when theres more than x (3?4?) things in there
-#TODO: adjust city name boldness for readability
+#DONE: consider shrinking hazards box when theres more than x (3?4?) things in there
+#TODO: adjust city name boldness for readability (done-ish)
 #TODO: space out city names slightly more
+#TODO: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
+#TODO: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
 
 ''' 
 ZORDER STACK
@@ -40,11 +43,43 @@ ZORDER STACK
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
 
+ALERT_COLORS = {
+        "Severe Thunderstorm Warning": {
+        "facecolor": "#ffff00", # yellow
+        "edgecolor": "#cccc00", # darker yellow for border
+        "fillalpha": "50"
+    },
+    "Tornado Warning": {
+        "facecolor": "#ff0000", # red
+        "edgecolor": "#cc0000", # darker red
+        "fillalpha": "50"
+    },
+    "Flash Flood Warning": {
+        "facecolor": "#02de02", # green
+        "edgecolor": "#00dc00", # darker green
+        "fillalpha": "50"
+    },
+    "Special Weather Statement": {
+        "facecolor": "#ff943d", # orange
+        "edgecolor": "#e07b24", # darker orange
+        "fillalpha": "50"
+    },
+    "Special Marine Warning": {
+        "facecolor": "#009691", # teal
+        "edgecolor": "#007a75", # darker teal
+        "fillalpha": "50"
+    },
+    "default": {
+        "facecolor": "#b7b7b7", # grey
+        "edgecolor": "#414141", # dark grey
+        "fillalpha": "50"
+    }
+}
+
 #reader = shpreader.Reader('countyl010g.shp')
 #counties = list(reader.geometries())
 #COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
-AREA_FILTERS = ["OHZ052", "OHC061", "NCZ203", "LAZ143", "FLC099"]  # Replace with your local zone/county codes
-NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
+
 start_time = time.time()
 
 
@@ -91,18 +126,9 @@ def plot_alert_polygon(alert, output_path):
         interstates_all.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
         federal_roads_all.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 3)
         
-        if alert_type == "Severe Thunderstorm Warning":
-            fig.set_facecolor('yellow')
-        elif alert_type == 'Tornado Warning':
-            fig.set_facecolor('red') 
-        elif alert_type == 'Flash Flood Warning':
-            fig.set_facecolor('green')
-        elif alert_type == 'Special Weather Statement':
-            fig.set_facecolor("#ff943d")
-        elif alert_type == 'Special Marine Warning':
-            fig.set_facecolor("#009691")
-        else:
-            fig.set_facecolor("#b7b7b7")
+        #simplified
+        colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
+        fig.set_facecolor(colors['facecolor'])
                    
         # Fit view to geometry
         minx, miny, maxx, maxy = geom.bounds
@@ -267,42 +293,18 @@ def plot_alert_polygon(alert, output_path):
         
         # Draw the polygon
         if geom.geom_type == 'Polygon':
-            if alert_type == "Severe Thunderstorm Warning":
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color='yellow', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor='#ffff0050', zorder = 0)
-            elif alert_type == 'Tornado Warning':
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor="#ff000050", zorder = 0)
-            elif alert_type == 'Flash Flood Warning':
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color='green', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor = "#00ff2f50", zorder = 0)
-            elif alert_type == 'Special Weather Statement':
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color='#ff943d', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor = "#ff943d50", zorder = 0)
-            elif alert_type == 'Special Marine Warning':
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color='#009691', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor = "#00969150", zorder = 0)
-            else:
-                x, y = geom.exterior.xy
-                ax.plot(x, y, color='black', linewidth=4, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.plot(x, y, color="#414141", linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
-                ax.fill(x, y, facecolor = "#8e8e8e49", zorder = 0)  
-                  
+            fill_color = colors['facecolor'] + colors['fillalpha'] #rebuild the hexcode w/ alpha
+            edge_color = colors ['edgecolor']
+            
+            x, y = geom.exterior.xy
+            ax.plot(x,y, color='black', linewidth=4, transform = ccrs.PlateCarree(), zorder = 4)
+            ax.plot(x,y, color=edge_color, linewidth=2, transform = ccrs.PlateCarree(), zorder = 4)
+            ax.fill(x,y, fill_color, zorder = 0)
         elif geom.geom_type == 'MultiPolygon':
             for poly in geom.geoms:
                 x, y = poly.exterior.xy
                 print("how is there a multipolygon warning?? should look at this...")
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)
+                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)   
         
         #box to show info about hazards like hail/wind if applicable
         maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
@@ -316,6 +318,23 @@ def plot_alert_polygon(alert, output_path):
         snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
         waterspoutDetection = alert['properties']['parameters'].get('waterspoutDetection', ['n/a'])[0] #"OBSERVED" or "POSSIBLE"
         
+        #handling SMWs because they don't have maxwind/maxhail in their parameters
+        if alert_type == 'Special Marine Warning':
+            description_text = alert['properties'].get('description','').lower()
+            if maxWind == 'n/a':
+                wind_match = re.search(r"wind gusts.*?(\d+)\s*knots", description_text) #regex is beyond me
+                if wind_match:
+                    maxWind = f"{wind_match.group(1)}kts"
+            
+            if maxHail == 'n/a':
+                hail_match = re.search(r"hail.*?([\d.]+)\s*inch", description_text)
+                if hail_match:
+                    try:
+                        #convert to float
+                        maxHail = float(hail_match.group(1))
+                    except ValueError:
+                        print('could not parse hail size from description')
+            
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
             (maxHail, 'Max. Hail Size', "in"),
@@ -335,8 +354,14 @@ def plot_alert_polygon(alert, output_path):
                 details_text_lines.append(f"{label}: $\\bf{{{val_str}}}$")
 
         details_text = "\n".join(details_text_lines)
-        info_box = AnchoredText(details_text, loc=3, prop={'size': 12}, frameon=True, zorder = 7)
-        ax.add_artist(info_box)
+        
+        #shrink fontsize if there are more than 3 things in the detailstext infobox (rare but i've seen it)
+        if details_text_lines:
+            if len(details_text_lines) < 4:
+                info_box = AnchoredText(details_text, loc=3, prop={'size': 12}, frameon=True, zorder = 7)
+            elif len(details_text_lines) >= 4:
+                info_box = AnchoredText(details_text, loc=3, prop={'size': 10}, frameon=True, zorder = 7)
+            ax.add_artist(info_box)
         
         pdsBox = None
         pdsBox_text = None
@@ -402,7 +427,7 @@ def plot_alert_polygon(alert, output_path):
         area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
-        print(instructions)
+        
         
         if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
@@ -416,7 +441,7 @@ def plot_alert_polygon(alert, output_path):
         return output_path, statement
     except Exception as e:
         print(Fore.RED + f"Error plotting alert geometry: {e}")
-        return None
+        return None, None
 
 
 #plot_alert_polygon(test_alert2)
