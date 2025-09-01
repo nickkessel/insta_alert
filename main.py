@@ -16,7 +16,7 @@ import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
 from shapely.geometry import box
-from colorama import Fore
+from colorama import Fore, Back
 import re
 from polygonmaker import plot_alert_polygon
 import os
@@ -56,6 +56,7 @@ load_dotenv()
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
 #TODO: figure out why it is so slow when you first start running the script
+#TODO: rename project at some point
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"      
@@ -73,15 +74,21 @@ target_bbox = { #this is the area that is being scanned for alerts as well
         "lat_min": 38.736946,
         "lat_max": 39.664914
     } 
-test_bbox = {
-        "lon_min": -185,
-        "lon_max": -45,
+conus_bbox = {
+        "lon_min": -126,
+        "lon_max": -66,
+        "lat_min": 24,
+        "lat_max": 50
+}
+everything_bbox = { #includes AK, PR, HI
+        "lon_min": -173,
+        "lon_max": -63,
         "lat_min": 15,
-        "lat_max": 55
+        "lat_max": 71
 }
 
 
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flo2od Warning", "Special Weather Statement", "Special Marine Warning"] 
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", 'Flood Advisory', "Special Weather Statement", "Special Marine Warning"] 
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -127,7 +134,7 @@ def get_nws_alerts():
                 return is_inside #true/false
             
             if USE_TEST_BBOX:
-                actual_bbox = test_bbox
+                actual_bbox = conus_bbox
             else:
                 actual_bbox = target_bbox
 
@@ -276,14 +283,14 @@ def main():
                 alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
                 try: #try/except as we were getting incomplete file errors!
                     path, statement = plot_alert_polygon(alert, alert_path)
-                    print(statement)
+                    #print(statement)
                     if FACEBOOK:
                         post_to_facebook(statement, alert_path)
                     if DISCORD:
                         log_to_discord(statement, alert_path)
                     posted_alerts.add(alert_id)
                 except Exception as e:
-                    print(Fore.RED + f'An error occurred. Waiting 15 seconds then restarting.')
+                    print(Back.RED + f'An error occurred. Waiting 15 seconds then restarting.' + Back.RESET)
                     time.sleep(10)
                     continue
             elif alert_id in posted_alerts:

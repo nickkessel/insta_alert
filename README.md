@@ -1,1 +1,1 @@
-Post warnings on Facebook
+Post warnings on Facebook and/or discord

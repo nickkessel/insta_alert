@@ -14,6 +14,8 @@ from colorama import Fore, Back
 import threading
 from requests.exceptions import RequestException
 from http.client import IncompleteRead
+import tempfile
+from datetime import datetime
 
 #DONE: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
@@ -25,8 +27,8 @@ from http.client import IncompleteRead
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [
-    (0, (0, 0, 0, 0)),
-    (5, (29, 37, 60)),
+    #(0, (0, 0, 0, 0)),
+    (10, (29, 37, 60, 0)),
     (17.5, (89, 155, 171)),
     (22.5, (33, 186, 72)),
     (32.5, (5, 101, 1)),
@@ -76,7 +78,7 @@ normalized_stops2 = [
 qpe_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops2)
 
 #inches, (R G B)
-stops3 = [ #gQPE colorscale 0-4"
+stops3 = [ #QPE colorscale 0-4"
     (0.0,  (0, 0, 0, 0)),         
     (0.01, (68, 166, 255, 120)),
     (0.1,    (155, 255, 155, 255)),
@@ -233,7 +235,7 @@ def get_mrms_data_async(bbox, type):
     """
     ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
     qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
-    if type == "Flash Flood Warning":
+    if type == "Flash Flood Warning" or "Flood Advisory":
         url = qpe1hr_url
         convert_units = True
         cmap_to_use = qpe2_cmap
@@ -250,7 +252,7 @@ def get_mrms_data_async(bbox, type):
     with cache_lock:
         #check if a fresh dataset is in the cache
         if url in mrms_cache:
-            cache_time, ds = mrms_cache
+            cache_time, ds = mrms_cache[url]
             #MRMS data usually updates every 2min, with a 2-4min lag 
             if time.time() - cache_time < 120:
                 #using the fresh dataset (less than 2 min old, will probably need to change this due to the download lag)
@@ -269,24 +271,35 @@ def get_mrms_data_async(bbox, type):
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             grib_content = gzip.decompress(response.content)
+            #print(grib_content)
             print('download successful')
             break
         except (RequestException, IncompleteRead) as e:
             print(f'Attempt {attempt + 1} failed, retrying')
-            if attempt + 1< max_retries:
+            if attempt + 1 >= max_retries:
                 print(Back.RED + "All download attempts failed" + Back.RESET)
                 return None, None, None, None, None, None
+            else: 
+                time.sleep(3)
     #Processing logic (in memory)
     try:
         #using in-memory buffer to avoid disk writes, should be faster. not sure what the resource usage will be like/ will there be issues related to this
-        with io.BytesIO(grib_content) as grib_buffer:
-            ds = xr.open_dataset(grib_buffer, engine='cfgrib', backend_kwargs={'decode_timedelta': False})
-            
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.grib2') as tmp:
+            tmp.write(grib_content)
+            tmp_path = tmp.name
+        #grib_buffer = io.BytesIO(grib_content)
+        
+        # <-- FIX: Remove the grib_buffer.read() line and pass the buffer object directly.
+        ds = xr.open_dataset(tmp_path, engine='cfgrib', backend_kwargs={'decode_timedelta': False})
+        # Load the data into memory before closing the buffer
+        ds.load()
+        
         if convert_units: 
             ds['unknown'] = ds['unknown'] / 25.4 #mm to in for QPE
         with cache_lock:
-            mrms_cache[url] = (time.time(), ds)
-            print(Back.GREEN + f'MRMS cache updated at {time.time()}' +Back.RESET)
+            current_time = time.time()
+            mrms_cache[url] = (current_time, ds)
+            print(Back.GREEN + f'MRMS cache updated at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(current_time))}' +Back.RESET)
         #subset the new data for the warning
         lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
         lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
@@ -294,8 +307,12 @@ def get_mrms_data_async(bbox, type):
         valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
         return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
     except Exception as e:
-        print(Back.RED + f'an error occurred during xarray processing: {e}')
+        print(Back.RED + f'an error occurred during xarray processing: {e}' + Back.RESET)
         return None, None, None, None, None, None
+    finally:
+    #clean up
+        if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            os.remove(tmp_path)
                 
     
 

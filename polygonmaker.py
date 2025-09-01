@@ -29,6 +29,8 @@ import re
 #DONE: consider shrinking hazards box when theres more than x (3?4?) things in there
 #TODO: adjust city name boldness for readability (done-ish)
 #TODO: space out city names slightly more
+#TODO: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
+    #there aren't like big boxes with super dense city names with them
 #TODO: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
 #TODO: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
 
@@ -42,11 +44,11 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
-        "Severe Thunderstorm Warning": {
+    "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
-        "edgecolor": "#cccc00", # darker yellow for border
+        "edgecolor": "#efef00", # darker yellow for border
         "fillalpha": "50"
     },
     "Tornado Warning": {
@@ -68,6 +70,11 @@ ALERT_COLORS = {
         "facecolor": "#00E4DD", # teal
         "edgecolor": "#00cdc6", # darker teal
         "fillalpha": "50"
+    },
+    'Flood Advisory': {
+        'facecolor': '#00ff7f',
+        'edgecolor': "#00d168",
+        'fillalpha': '50'
     },
     "default": {
         "facecolor": "#b7b7b7", # grey
@@ -382,7 +389,7 @@ def plot_alert_polygon(alert, output_path):
             pdsBox_color = "#ff1717a7"
         elif torDetection == 'POSSIBLE':  # Tornado Possible tag on SVR
             pdsBox_text = "A tornado is POSSIBLE with this storm!"
-            pdsBox_color = "yellow"
+            pdsBox_color = colors['facecolor']
         elif waterspoutDetection == 'OBSERVED':
             pdsBox_text = "Waterspouts have been observed with this storm!\nHead to shore immediately!"
             pdsBox_color = colors['facecolor'] #cyan/teal if its an SMW
@@ -437,7 +444,7 @@ def plot_alert_polygon(alert, output_path):
         statement = (f"A {alert_type} has been issued, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} \n#cincywx #cincinnati #weather #ohwx #ohiowx #cincy #cincinnatiwx")
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
-        print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s")
+        print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)
         #print(statement)
         return output_path, statement
     except Exception as e:
