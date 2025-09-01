@@ -8,6 +8,9 @@ import os
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import glob
+import time
+import io
+import threading
 
 #DONE: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
@@ -95,6 +98,7 @@ normalized_stops3 = [
 qpe2_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops3)
 
 valid_time = 0
+#really just useful for testing
 def save_mrms_subset(bbox, type, state_borders):
     """
     Fetches latest MRMS data, subsets it to a bounding box, 
@@ -213,6 +217,43 @@ def save_mrms_subset(bbox, type, state_borders):
     print(f"MRMS image saved.")
     return valid_time_short, output_path
 
+#new way testing (async download/caching)
+#cache stores the last successfully downloaded MRMS dataset
+#key is URL, value is a tuple: (timestamp, xarray_dataset)
+mrms_cache = {}
+#locks the thread so that other threads can't "look in" and try and access what its doing while its working
+cache_lock = threading.Lock()
+def get_mrms_data_async(bbox, type):
+    """
+    Fetches and subsets the latest MRMS data using a resilient, thread-safe,
+    in-memory cache to improve speed and reliability.
+    """
+    ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
+    qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
+    if type == "Flash Flood Warning":
+        url = qpe1hr_url
+        convert_units = True
+        cmap_to_use = qpe2_cmap
+        data_min, data_max = min_val3, max_val3
+        cbar_label = "Radar Estimated Precipitation (1h)"
+    else:
+        url = ref_url
+        convert_units = False
+        cmap_to_use = radarscope_cmap
+        data_min, data_max = min_dbz, max_dbz
+        cbar_label = "Reflectivity (dBZ)"
+        
+    #cache logic
+    with cache_lock:
+        #check if a fresh dataset is in the cache
+        if url in mrms_cache:
+            cache_time, ds = mrms_cache
+            #MRMS data usually updates every 2min, with a 2-4min lag 
+            if time.time() - cache_time < 120:
+                print(f"Using cached data from: {time.strftime('%H:%M:%S', time.localtime(cache_time))}")
+    
+
+#old way, somewhat stable, doesn't survive dropped connections
 def get_mrms_data(bbox, type):
     """
     Fetches and subsets the latest MRMS data.
