@@ -19,7 +19,7 @@ import time
 from siphon.catalog import TDSCatalog
 import xarray as xr
 from colorama import Back, Fore, Style
-from plot_mrms2 import save_mrms_subset, get_mrms_data
+from plot_mrms2 import save_mrms_subset, get_mrms_data, get_mrms_data_async
 import re
 
 #TODO: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
@@ -173,7 +173,7 @@ def plot_alert_polygon(alert, output_path):
         clip_box = ax.get_window_extent() #for the text on screen
         #NEW: plotting MRMS data here
         print("calling get_mrms_data")
-        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data(map_region2, alert_type)
+        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type)
         print("data got")
         #directly plot the MRMS data onto the main axes (and colorbar, seperately)
         if subset is not None:

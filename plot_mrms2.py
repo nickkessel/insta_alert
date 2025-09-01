@@ -10,7 +10,10 @@ import numpy as np
 import glob
 import time
 import io
+from colorama import Fore, Back
 import threading
+from requests.exceptions import RequestException
+from http.client import IncompleteRead
 
 #DONE: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
@@ -250,7 +253,50 @@ def get_mrms_data_async(bbox, type):
             cache_time, ds = mrms_cache
             #MRMS data usually updates every 2min, with a 2-4min lag 
             if time.time() - cache_time < 120:
+                #using the fresh dataset (less than 2 min old, will probably need to change this due to the download lag)
                 print(f"Using cached data from: {time.strftime('%H:%M:%S', time.localtime(cache_time))}")
+                lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
+                lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
+                subset = ds.sel(latitude=lat_slice, longitude=lon_slice).load()
+                valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+                return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
+            
+    print(f'cache is stale or empty. fetching new data from {url}')
+    grib_content = None
+    max_retries = 3 #if connection drops, or otherwise ds doesn't download
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            grib_content = gzip.decompress(response.content)
+            print('download successful')
+            break
+        except (RequestException, IncompleteRead) as e:
+            print(f'Attempt {attempt + 1} failed, retrying')
+            if attempt + 1< max_retries:
+                print(Back.RED + "All download attempts failed" + Back.RESET)
+                return None, None, None, None, None, None
+    #Processing logic (in memory)
+    try:
+        #using in-memory buffer to avoid disk writes, should be faster. not sure what the resource usage will be like/ will there be issues related to this
+        with io.BytesIO(grib_content) as grib_buffer:
+            ds = xr.open_dataset(grib_buffer, engine='cfgrib', backend_kwargs={'decode_timedelta': False})
+            
+        if convert_units: 
+            ds['unknown'] = ds['unknown'] / 25.4 #mm to in for QPE
+        with cache_lock:
+            mrms_cache[url] = (time.time(), ds)
+            print(Back.GREEN + f'MRMS cache updated at {time.time()}' +Back.RESET)
+        #subset the new data for the warning
+        lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
+        lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
+        subset = ds.sel(latitude=lat_slice, longitude=lon_slice).load()
+        valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+        return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
+    except Exception as e:
+        print(Back.RED + f'an error occurred during xarray processing: {e}')
+        return None, None, None, None, None, None
+                
     
 
 #old way, somewhat stable, doesn't survive dropped connections
