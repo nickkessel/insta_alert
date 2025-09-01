@@ -179,9 +179,7 @@ def plot_alert_polygon(alert, output_path):
         ax.set_extent(map_region)
         clip_box = ax.get_window_extent() #for the text on screen
         #NEW: plotting MRMS data here
-        print("calling get_mrms_data")
         subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type)
-        print("data got")
         #directly plot the MRMS data onto the main axes (and colorbar, seperately)
         if subset is not None:
             im = ax.pcolormesh(

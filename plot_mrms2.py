@@ -235,7 +235,7 @@ def get_mrms_data_async(bbox, type):
     """
     ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
     qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
-    if type == "Flash Flood Warning" or "Flood Advisory":
+    if type == "Flash Flood Warning" or type == "Flood Advisory":
         url = qpe1hr_url
         convert_units = True
         cmap_to_use = qpe2_cmap
