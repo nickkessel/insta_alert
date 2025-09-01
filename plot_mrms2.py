@@ -228,15 +228,29 @@ def save_mrms_subset(bbox, type, state_borders):
 mrms_cache = {}
 #locks the thread so that other threads can't "look in" and try and access what its doing while its working
 cache_lock = threading.Lock()
-def get_mrms_data_async(bbox, type):
+def get_mrms_data_async(bbox, type, region):
     """
     Fetches and subsets the latest MRMS data using a resilient, thread-safe,
     in-memory cache to improve speed and reliability.
     """
-    ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
-    qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
+    if region == 'AK':
+        ref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz  '
+        qpe_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
+    elif region == 'HI':
+        ref_url = 'https://mrms.ncep.noaa.gov/2D/HAWAII/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz'
+        qpe_url = 'https://mrms.ncep.noaa.gov/2D/HAWAII/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
+    elif region == 'PR':
+        ref_url = 'https://mrms.ncep.noaa.gov/2D/CARIB/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz'
+        qpe_url = 'https://mrms.ncep.noaa.gov/2D/CARIB/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
+    elif region == 'GU':
+        ref_url = 'https://mrms.ncep.noaa.gov/2D/GUAM/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz'
+        qpe_url = 'https://mrms.ncep.noaa.gov/2D/GUAM/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
+    else:
+        ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
+        qpe_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
+        
     if type == "Flash Flood Warning" or type == "Flood Advisory":
-        url = qpe1hr_url
+        url = qpe_url
         convert_units = True
         cmap_to_use = qpe2_cmap
         data_min, data_max = min_val3, max_val3

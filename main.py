@@ -134,7 +134,7 @@ def get_nws_alerts():
                 return is_inside #true/false
             
             if USE_TEST_BBOX:
-                actual_bbox = conus_bbox
+                actual_bbox = everything_bbox
             else:
                 actual_bbox = target_bbox
 

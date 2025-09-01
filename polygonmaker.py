@@ -22,7 +22,7 @@ from colorama import Back, Fore, Style
 from plot_mrms2 import save_mrms_subset, get_mrms_data, get_mrms_data_async
 import re
 
-#TODO: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
+#DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
     #everything, but the imagery still plots towards the bottom. 
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
@@ -32,7 +32,7 @@ import re
 #TODO: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
     #there aren't like big boxes with super dense city names with them
 #TODO: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
-#TODO: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
+#DONE: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
 
 ''' 
 ZORDER STACK
@@ -44,7 +44,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -179,7 +179,20 @@ def plot_alert_polygon(alert, output_path):
         ax.set_extent(map_region)
         clip_box = ax.get_window_extent() #for the text on screen
         #NEW: plotting MRMS data here
-        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type)
+        #check for region
+        office_awips = alert['properties']['parameters'].get("AWIPSidentifier")[0]
+        office_awips = office_awips[3:]
+        if office_awips == 'SJU':
+            region = 'PR'
+        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG':
+            region = 'AK'
+        elif office_awips == 'HFO':
+            region = 'HI'
+        elif office_awips == 'GUM':
+            region = 'GU'
+        else:
+            region = 'US'
+        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)
         #directly plot the MRMS data onto the main axes (and colorbar, seperately)
         if subset is not None:
             im = ax.pcolormesh(
