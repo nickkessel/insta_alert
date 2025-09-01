@@ -44,7 +44,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -326,8 +326,11 @@ def plot_alert_polygon(alert, output_path):
                 ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)   
         
         #box to show info about hazards like hail/wind if applicable
+        
         maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
         maxHail = alert['properties']['parameters'].get('maxHailSize', ["n/a"])[0] #float
+        windObserved = alert['properties']['parameters'].get('windThreat', ["n/a"])[0]
+        hailObserved = alert['properties']['parameters'].get('hailThreat', ["n/a"])[0]
         torDetection = alert['properties']['parameters'].get('tornadoDetection', ['n/a'])[0] #string, possible for svr; radar-indicated, radar-confirmed, need to see others for tor warning
         floodSeverity = alert['properties']['parameters'].get('flashFloodDamageThreat', ['n/a'])[0] #string, default level (unsure what this returns), considerable, catastophic
         tStormSeverity = alert['properties']['parameters'].get('thunderstormDamageThreat', ['n/a'])[0] 
@@ -353,10 +356,17 @@ def plot_alert_polygon(alert, output_path):
                         maxHail = float(hail_match.group(1))
                     except ValueError:
                         print('could not parse hail size from description')
+        #add observed tag to wind/hail threat
+        if maxHail:
+            maxHail = f'{str(maxHail)}in' #add units
+        if windObserved == 'OBSERVED':
+            maxWind = f"{str(maxWind)} ({windObserved})"
+        if hailObserved == 'OBSERVED':
+            maxHail = f"{str(maxHail)} ({hailObserved})"
             
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
-            (maxHail, 'Max. Hail Size', "in"),
+            (maxHail, 'Max. Hail Size', ""),
             (floodSeverity, 'Damage Threat', ""),
             (tStormSeverity, 'Damage Threat', ""),
             (torSeverity, 'Damage Threat', ""),
@@ -368,7 +378,7 @@ def plot_alert_polygon(alert, output_path):
         ]
         details_text_lines = []
         for value, label, suffix in hazard_details:
-            if value != "n/a":
+            if value != "n/a" and value != "n/ain":
                 val_str = str(value).replace(" ", r"\ ") + suffix
                 details_text_lines.append(f"{label}: $\\bf{{{val_str}}}$")
 
