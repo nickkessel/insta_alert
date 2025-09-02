@@ -24,6 +24,9 @@ from datetime import datetime
     #by passing in a bbox and getting that part of the image back.
 #TODO: fix eccodes error
 
+#TODO: fix position of the colorbar/legend
+#TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
+#TODO: scale imagery properly to the graphics - you can tell it's distorted by the strecthed text
 #recreate radarscope colortable for colormap
 # List of (dBZ, RGBA) tuples 
 stops = [

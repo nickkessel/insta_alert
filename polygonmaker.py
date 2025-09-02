@@ -240,7 +240,6 @@ def plot_alert_polygon(alert, output_path):
         
         #print(f'total cities available: {len(df_large)}')
         print(f'cities in view: {len(visible_cities_df)}')
-
         #plot cities
         fig.canvas.draw()
         text_candidates = []
