@@ -1,28 +1,32 @@
-import matplotlib.pyplot as plt #imports :-)
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from metpy.plots import USCOUNTIES
+from colorama import Fore, Back
+print(Back.LIGHTWHITE_EX + 'Load 1' + Back.RESET)
+#import matplotlib.pyplot as plt #imports :-)
+#import cartopy.crs as ccrs
+#import cartopy.feature as cfeature
+#from metpy.plots import USCOUNTIES
 from shapely.geometry import shape
 import requests
 import json
 import pandas as pd
 import time
 import requests
-from datetime import datetime
-import pytz
-from math import hypot
-from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
+#from datetime import datetime
+#import pytz
+print(Back.LIGHTWHITE_EX + 'Load 2' + Back.RESET)
+#from math import hypot
+#from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
-import matplotlib.patheffects as PathEffects
+#import matplotlib.patheffects as PathEffects
 import geopandas as gpd
-from shapely.geometry import box
-from colorama import Fore, Back
+#from shapely.geometry import box
 import re
+print(Back.LIGHTWHITE_EX + 'Load 3' + Back.RESET)
 from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
 from discord_webhook import DiscordWebhook, DiscordEmbed
 load_dotenv()
+print(Back.GREEN + 'imports imported succesfully' + Back.RESET)
 
 #TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
 #DONE different color warnings tor = red, svr = yellow, flashflood = green, tor-r = wideborder red, pds-tor = magenta, svr-destructive/considerable = wideborder yellow
@@ -267,7 +271,7 @@ def main():
                     if ref_maxWind == maxWind and ref_maxHail == maxHail:
                         print("new attributes = ref attributes, not posting")
                         ref_check_passed = False
-                    elif (ref_maxWind != maxWind) or (ref_maxHail != maxHail):
+                    elif (ref_maxWind != maxWind) or (ref_maxHail != maxHail): #TODO: rework that logic here
                         print("new attributes differ from old ones, posting")
                         ref_check_passed = True
                 else:
@@ -291,7 +295,7 @@ def main():
                     posted_alerts.add(alert_id)
                 except Exception as e:
                     print(Back.RED + f'An error occurred. Waiting 15 seconds then restarting.' + Back.RESET)
-                    time.sleep(10)
+                    time.sleep(15)
                     continue
             elif alert_id in posted_alerts:
                 message = (

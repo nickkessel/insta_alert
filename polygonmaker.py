@@ -1,11 +1,10 @@
 #using this as like a test thing
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from metpy.plots import USCOUNTIES
+#import cartopy.feature as cfeature
+#from metpy.plots import USCOUNTIES
 from shapely.geometry import shape
-from matplotlib.transforms import Bbox
-import requests
+#from matplotlib.transforms import Bbox
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -14,9 +13,9 @@ from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
-from shapely.geometry import box
+from shapely.ops import unary_union
+#from shapely.geometry import box
 import time
-from siphon.catalog import TDSCatalog
 import xarray as xr
 from colorama import Back, Fore, Style
 from plot_mrms2 import save_mrms_subset, get_mrms_data, get_mrms_data_async
@@ -44,7 +43,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -89,12 +88,19 @@ ALERT_COLORS = {
 
 start_time = time.time()
 
-
+print(Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 df_large = pd.read_csv('filtered_cities_all.csv')
+print(Back.LIGHTWHITE_EX + 'Cities loaded' + Back.RESET)
 logo_path= 'cincyweathernobg.png'
 logo = mpimg.imread(logo_path)
 
 roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
+print(Back.LIGHTWHITE_EX + 'Loading TIGER .shp' + Back.RESET)
+counties_gdf = gpd.read_file('counties2/tl_2024_us_county.shp') #load counties shapefile
+states_gdf = counties_gdf.dissolve(by='STATEFP') #find state borders from the county geometry
+print(Back.LIGHTWHITE_EX + 'TIGER data loaded' + Back.RESET)
+
+
 
 interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
@@ -128,8 +134,11 @@ def plot_alert_polygon(alert, output_path):
 
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
-        ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
-        ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
+        
+        states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
+        counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2)       
+        #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
+        #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
         interstates_all.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
         federal_roads_all.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 3)
         
