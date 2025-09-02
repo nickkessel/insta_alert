@@ -443,7 +443,6 @@ def plot_alert_polygon(alert, output_path):
                 zorder=7                          # Set z-order to be on top
             )
         
-        
         #add watermark
         imagebox = OffsetImage(logo, zoom = 0.09, alpha = 0.75)
         ab = AnnotationBbox(

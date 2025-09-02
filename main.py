@@ -27,9 +27,8 @@ import os
 from dotenv import load_dotenv
 from discord_webhook import DiscordWebhook, DiscordEmbed
 load_dotenv()
-load_done_time = time.time()
-print(Back.GREEN + f'imports imported succesfully {load_done_time - load_time}' + Back.RESET)
-
+load_done_time = time.time() - load_time
+print(Back.GREEN + f'imports imported succesfully {load_done_time:.2f}s' + Back.RESET)
 #TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
 #DONE different color warnings tor = red, svr = yellow, flashflood = green, tor-r = wideborder red, pds-tor = magenta, svr-destructive/considerable = wideborder yellow
 #DONE add to header text expiration time for warning
