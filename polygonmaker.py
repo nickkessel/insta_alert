@@ -43,7 +43,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -90,22 +90,22 @@ start_time = time.time()
 
 print(Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 df_large = pd.read_csv('filtered_cities_all.csv')
-print(Back.LIGHTWHITE_EX + 'Cities loaded' + Back.RESET)
+print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
 logo_path= 'cincyweathernobg.png'
 logo = mpimg.imread(logo_path)
 
+print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading roads' + Back.RESET)
 roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
-print(Back.LIGHTWHITE_EX + 'Loading TIGER .shp' + Back.RESET)
-counties_gdf = gpd.read_file('counties2/tl_2024_us_county.shp') #load counties shapefile
-states_gdf = counties_gdf.dissolve(by='STATEFP') #find state borders from the county geometry
-print(Back.LIGHTWHITE_EX + 'TIGER data loaded' + Back.RESET)
-
-
+print(Back.LIGHTWHITE_EX + 'Roads loaded. Loading TIGER .shp' + Back.RESET)
+counties_full_gdf = gpd.read_file('counties/cb_2023_us_county_5m.shp') #load counties shapefile
+print(Back.LIGHTWHITE_EX + 'TIGER data loaded. Processing state borders.' + Back.RESET)
+states_gdf = counties_full_gdf.dissolve(by='STATEFP') #find state borders from the county geometry
+print(Back.LIGHTWHITE_EX + 'State borders processed. Loading roads' + Back.RESET)
 
 interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
+print(Back.LIGHTWHITE_EX + 'Roads loaded' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
-
 
 def plot_alert_polygon(alert, output_path):
     plot_start_time = time.time()
@@ -135,7 +135,7 @@ def plot_alert_polygon(alert, output_path):
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
         
-        counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
+        counties_full_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
@@ -482,4 +482,4 @@ def plot_alert_polygon(alert, output_path):
         return None, None
 
 
-#plot_alert_polygon(test_alert2)
+#plot_alert_polygon(test_alert4, 'graphics/test2')

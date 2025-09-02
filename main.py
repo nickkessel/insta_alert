@@ -1,4 +1,6 @@
 from colorama import Fore, Back
+import time
+load_time = time.time()
 print(Back.LIGHTWHITE_EX + 'Load 1' + Back.RESET)
 #import matplotlib.pyplot as plt #imports :-)
 #import cartopy.crs as ccrs
@@ -8,7 +10,6 @@ from shapely.geometry import shape
 import requests
 import json
 import pandas as pd
-import time
 import requests
 #from datetime import datetime
 #import pytz
@@ -26,7 +27,8 @@ import os
 from dotenv import load_dotenv
 from discord_webhook import DiscordWebhook, DiscordEmbed
 load_dotenv()
-print(Back.GREEN + 'imports imported succesfully' + Back.RESET)
+load_done_time = time.time()
+print(Back.GREEN + f'imports imported succesfully {load_done_time - load_time}' + Back.RESET)
 
 #TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
 #DONE different color warnings tor = red, svr = yellow, flashflood = green, tor-r = wideborder red, pds-tor = magenta, svr-destructive/considerable = wideborder yellow
