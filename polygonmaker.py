@@ -37,7 +37,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -100,6 +100,139 @@ interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'Roads loaded' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
+
+test_alert4 =  { #ffw
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+      [
+        -80.2734376,
+        26.0394772
+      ],
+      [
+        -80.0180055,
+        25.9900926
+      ],
+      [
+        -79.8971559,
+        26.5370914
+      ],
+      [
+        -79.9658204,
+        26.763017
+      ],
+      [
+        -80.1251222,
+        26.7581103
+      ],
+      [
+        -80.2020265,
+        26.2811606
+      ],
+      [
+        -80.2734376,
+        26.0394772
+      ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+                "areaDesc": "Loveland, OH",
+                "geocode": {
+                    "SAME": [
+                        "035047"
+                    ],
+                    "UGC": [
+                        "NMC047"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC047"
+                ],
+                "references": [
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2025-06-09T12:54:00-06:00"
+                    },
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2025-06-09T13:51:00-06:00"
+                    }
+                ],
+                "sent": "2025-06-09T15:14:00-06:00",
+                "effective": "2025-06-09T15:14:00-06:00",
+                "onset": "2025-06-09T15:14:00-06:00",
+                "expires": "2025-06-09T16:00:00-06:00",
+                "ends": "2025-06-09T16:00:00-06:00",
+                "status": "Actual",
+                "messageType": "Update",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Wilmington OH",
+                "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
+                "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
+                "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
+                "response": "Avoid",
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFSABQ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS75 KABQ 092114"
+                    ],
+                    "NWSheadline": [
+                        "FLASH FLOOD WARNING FOR THE HERMITS PEAK AND CALF CANYON BURN SCAR REMAINS IN EFFECT UNTIL 4 PM MDT THIS AFTERNOON FOR NORTHWESTERN SAN MIGUEL COUNTY"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "flashFloodDamageThreat": [
+                        "CONSIDERABLE"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KABQ.FF.W.0031.000000T0000Z-250609T2200Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2025-06-09T16:00:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFS"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        }
+
 
 def plot_alert_polygon(alert, output_path):
     plot_start_time = time.time()
@@ -239,7 +372,18 @@ def plot_alert_polygon(alert, output_path):
         fig.canvas.draw()
         text_candidates = []
         plotted_points = []
-        min_distance_deg = 0.04 #0.065 is good for 0.2-0.3 scale
+        alert_height = maxy - miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
+        print(alert_height) 
+        #this could honestly maybe be like dynamically scaled?
+        if alert_height > 1 and alert_height <= 1.75: 
+            min_distance_deg = 0.08 #0.065 is good for 0.2-0.3 scale
+        elif alert_height > 1.75 and alert_height <= 2.5:
+            min_distance_deg = 0.12
+        elif alert_height > 2.5:
+            min_distance_deg = 0.2
+        elif alert_height <= 1:
+            min_distance_deg = 0.04
+        
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
             city_y = city['lat']
@@ -475,4 +619,4 @@ def plot_alert_polygon(alert, output_path):
         return None, None
 
 
-#plot_alert_polygon(test_alert4, 'graphics/test2')
+plot_alert_polygon(test_alert4, 'graphics/test4_2')
