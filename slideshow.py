@@ -5,8 +5,8 @@ import pytz
 import queue
 
 # --- Constants ---
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = 1430
+SCREEN_HEIGHT = 1060
 SLIDE_DURATION = 14  # Seconds to display a slide
 FADE_DURATION = 1    # Seconds for the crossfade transition
 TOTAL_SLIDE_TIME = SLIDE_DURATION + FADE_DURATION
@@ -20,7 +20,9 @@ def run_slideshow(update_queue):
                                     in the format (image_path, expiration_time_iso).
     """
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+    programIcon = pygame.image.load('cincyweathernobg.png')
+    pygame.display.set_icon(programIcon)
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
     pygame.display.set_caption("Cincy Weather Graphics - Live Alerts")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont('sans-serif', 50, bold=True)
@@ -31,9 +33,14 @@ def run_slideshow(update_queue):
 
     running = True
     while running:
+        # Get the current dimensions of the display window
+        current_screen_width, current_screen_height = screen.get_size()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+            # We don't need a specific VIDEORESIZE event handler
+            # because `get_image` will now check and re-scale if needed.
 
         # --- 1. Update the list of active slides ---
         # Check for new slides posted by the main thread
@@ -44,7 +51,7 @@ def run_slideshow(update_queue):
                 # Add new alert if its graphic path isn't already in our list
                 if not any(s['path'] == path for s in active_slides):
                     print(f"[Slideshow] Adding new alert: {path}")
-                    active_slides.append({'path': path, 'expires': expires_dt, 'image': None})
+                    active_slides.append({'path': path, 'expires': expires_dt, 'original_image': None, 'scaled_image': None})
             except queue.Empty:
                 break # No more items in the queue
 
@@ -58,7 +65,7 @@ def run_slideshow(update_queue):
         if not active_slides:
             # Display a placeholder message if no alerts are active
             text_surf = font.render('No Active Alerts', True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2))
+            text_rect = text_surf.get_rect(center=(current_screen_width / 2, current_screen_height / 2))
             screen.blit(text_surf, text_rect)
             last_switch_time = time.time() # Reset timer
         else:
@@ -66,20 +73,26 @@ def run_slideshow(update_queue):
             if current_slide_index >= len(active_slides):
                 current_slide_index = 0
             
-            # --- Image Loading and Scaling (lazy loading) ---
+            # --- Image Loading and Scaling (lazy loading & dynamic scaling) ---
             def get_image(index):
+                if not active_slides: return None # Handle empty list after removal
                 slide = active_slides[index]
-                if slide['image'] is None:
+                
+                # If the original image hasn't been loaded yet
+                if slide['original_image'] is None:
                     try:
-                        # Load and scale the image only when needed
-                        img = pygame.image.load(slide['path']).convert()
-                        slide['image'] = pygame.transform.scale(img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+                        slide['original_image'] = pygame.image.load(slide['path']).convert()
                     except pygame.error as e:
                         print(f"[Slideshow] ERROR: Could not load image {slide['path']}: {e}")
                         # Remove problematic slide and return a placeholder
                         active_slides.pop(index)
                         return None
-                return slide['image']
+                
+                # Check if the scaled image needs to be updated (due to window resize or first display)
+                if slide['scaled_image'] is None or slide['scaled_image'].get_size() != (current_screen_width, current_screen_height):
+                    slide['scaled_image'] = pygame.transform.scale(slide['original_image'], (current_screen_width, current_screen_height))
+                
+                return slide['scaled_image']
 
             current_img = get_image(current_slide_index)
             if current_img is None: continue # Skip this frame if image failed to load
@@ -108,8 +121,11 @@ def run_slideshow(update_queue):
             else:
                 # Time to switch to the next slide
                 current_slide_index = (current_slide_index + 1) % len(active_slides)
+                # Ensure index is valid after any slide removals
+                if current_slide_index >= len(active_slides):
+                    current_slide_index = 0
                 next_img = get_image(current_slide_index)
-                if next_img is None: continue
+                if next_img is None: continue # Handle case where next image also fails or list becomes empty
 
                 next_img.set_alpha(255) # Ensure it's fully opaque
                 screen.blit(next_img, (0, 0))
