@@ -83,8 +83,8 @@ everything_bbox = { #includes AK, PR, HI
 }
 
 
-warning_types = ["Tornado Warning", "Flood Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", 'Flood Advisory', "Special Weather Statement", "Special Marine Warning"]
-
+warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", 'Flood Advisory', "Special Weather Statement", "Special Marine Warning"]
+#warning_types = ['Flood Advisory']
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()

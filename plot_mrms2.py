@@ -233,6 +233,7 @@ def get_mrms_data_async(bbox, type, region):
     Fetches and subsets the latest MRMS data using a resilient, thread-safe,
     in-memory cache to improve speed and reliability.
     """
+
     if region == 'AK':
         ref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz  '
         qpe_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
@@ -303,7 +304,6 @@ def get_mrms_data_async(bbox, type, region):
             tmp_path = tmp.name
         #grib_buffer = io.BytesIO(grib_content)
         
-        # <-- FIX: Remove the grib_buffer.read() line and pass the buffer object directly.
         ds = xr.open_dataset(tmp_path, engine='cfgrib', backend_kwargs={'decode_timedelta': False})
         # Load the data into memory before closing the buffer
         ds.load()
@@ -315,6 +315,7 @@ def get_mrms_data_async(bbox, type, region):
             mrms_cache[url] = (current_time, ds)
             print(Back.GREEN + f'MRMS cache updated at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(current_time))}' +Back.RESET)
         #subset the new data for the warning
+        #print(bbox['lon_min'], bbox['lon_max'], bbox['lat_min'], bbox['lat_max'])
         lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
         lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
         subset = ds.sel(latitude=lat_slice, longitude=lon_slice).load()

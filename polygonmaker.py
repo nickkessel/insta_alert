@@ -37,7 +37,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.3.7" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -108,34 +108,26 @@ test_alert4 =  { #ffw
                 "type": "Polygon",
                 "coordinates": [
                     [
-      [
-        -80.2734376,
-        26.0394772
-      ],
-      [
-        -80.0180055,
-        25.9900926
-      ],
-      [
-        -79.8971559,
-        26.5370914
-      ],
-      [
-        -79.9658204,
-        26.763017
-      ],
-      [
-        -80.1251222,
-        26.7581103
-      ],
-      [
-        -80.2020265,
-        26.2811606
-      ],
-      [
-        -80.2734376,
-        26.0394772
-      ]
+                [
+                    -80.33,
+                    25.9899999
+                ],
+                [
+                    -80.31,
+                    25.94
+                ],
+                [
+                    -80.42,
+                    25.950000000000003
+                ],
+                [
+                    -80.4,
+                    25.989999900000004
+                ],
+                [
+                    -80.33,
+                    25.9899999
+                ]
                     ]
                 ]
             },
@@ -180,7 +172,7 @@ test_alert4 =  { #ffw
                 "severity": "Severe",
                 "certainty": "Likely",
                 "urgency": "Immediate",
-                "event": "Flash Flood Warning",
+                "event": "Flood Advisory",
                 "sender": "w-nws.webmaster@noaa.gov",
                 "senderName": "NWS Wilmington OH",
                 "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
@@ -305,13 +297,14 @@ def plot_alert_polygon(alert, output_path):
         maxy += pad_y
         #scale = 0.2 #more is more zoomed out, less is more zoomed in #0.2-0.3 is probably ideal
         map_region = [minx, maxx, miny, maxy]
-        map_region2 = { #for the mrms stuff
-            "lon_min": minx,
-            "lon_max": maxx,
-            "lat_min": miny,
-            "lat_max": maxy
-        }
         #print(map_region)
+        map_region2 = { #for the mrms stuff
+            "lon_min": minx - 0.01,
+            "lon_max": maxx + 0.01,
+            "lat_min": miny - 0.01,
+            "lat_max": maxy + 0.01
+        }
+        #print(map_region2)
         ax.set_extent(map_region)
         clip_box = ax.get_window_extent() #for the text on screen
         #NEW: plotting MRMS data here
@@ -374,6 +367,7 @@ def plot_alert_polygon(alert, output_path):
         plotted_points = []
         alert_height = maxy - miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
         print(alert_height) 
+        '''
         #this could honestly maybe be like dynamically scaled?
         if alert_height > 1 and alert_height <= 1.75: 
             min_distance_deg = 0.08 #0.065 is good for 0.2-0.3 scale
@@ -383,6 +377,8 @@ def plot_alert_polygon(alert, output_path):
             min_distance_deg = 0.2
         elif alert_height <= 1:
             min_distance_deg = 0.04
+        '''
+        min_distance_deg = alert_height/5
         
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
@@ -619,4 +615,4 @@ def plot_alert_polygon(alert, output_path):
         return None, None
 
 
-plot_alert_polygon(test_alert4, 'graphics/test4_2')
+#plot_alert_polygon(test_alert4, 'graphics/suspect1')
