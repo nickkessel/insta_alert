@@ -1,10 +1,7 @@
 #using this as like a test thing
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-#import cartopy.feature as cfeature
-#from metpy.plots import USCOUNTIES
 from shapely.geometry import shape
-#from matplotlib.transforms import Bbox
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -13,12 +10,9 @@ from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
-from shapely.ops import unary_union
-#from shapely.geometry import box
 import time
-import xarray as xr
 from colorama import Back, Fore, Style
-from plot_mrms2 import save_mrms_subset, get_mrms_data, get_mrms_data_async
+from plot_mrms2 import get_mrms_data_async
 import re
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons

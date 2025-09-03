@@ -2,33 +2,19 @@ from colorama import Fore, Back
 import time
 load_time = time.time()
 print(Back.LIGHTWHITE_EX + 'Load 1' + Back.RESET)
-#import matplotlib.pyplot as plt #imports :-)
-#import cartopy.crs as ccrs
-#import cartopy.feature as cfeature
-#from metpy.plots import USCOUNTIES
 from shapely.geometry import shape
 import requests
 import json
-import pandas as pd
 import requests
-#from datetime import datetime
-#import pytz
 print(Back.LIGHTWHITE_EX + 'Load 2' + Back.RESET)
-#from math import hypot
-#from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
-import matplotlib.image as mpimg
-#import matplotlib.patheffects as PathEffects
-import geopandas as gpd
-#from shapely.geometry import box
 import re
-print(Back.LIGHTWHITE_EX + 'Load 3' + Back.RESET)
 from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
+print(Back.LIGHTWHITE_EX + 'Load 3' + Back.RESET)
 from discord_webhook import DiscordWebhook, DiscordEmbed
-# --- Add threading and queue for slideshow ---
-import threading
-import queue
+import threading #slideshow
+import queue #slideshow
 load_dotenv()
 load_done_time = time.time() - load_time
 print(Back.GREEN + f'imports imported succesfully {load_done_time:.2f}s' + Back.RESET)
@@ -103,15 +89,15 @@ warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood 
 posted_alerts = set()
 start_time = time.time()
 
-df_large = pd.read_csv('filtered_cities_all.csv')
-logo_path= 'cincyweathernobg.png'
-logo = mpimg.imread(logo_path)
-required_folders = ['graphics', 'mrms_stuff']
+#df_large = pd.read_csv('filtered_cities_all.csv')
+#logo_path= 'cincyweathernobg.png'
+#logo = mpimg.imread(logo_path)
+required_folders = ['graphics']
 
-roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
+#roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
 
-interstates_all = roads[roads['level'] == 'Interstate']
-federal_roads_all = roads[roads['level'] == 'Federal']
+#interstates_all = roads[roads['level'] == 'Interstate']
+#federal_roads_all = roads[roads['level'] == 'Federal']
 #interstates.to_csv('interstates_filtered.csv')
 
 def get_nws_alerts():

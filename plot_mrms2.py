@@ -6,16 +6,16 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import os
 from matplotlib.colors import LinearSegmentedColormap
-import numpy as np
-import glob
+#import numpy as np
+#import glob
 import time
-import io
+#import io
 from colorama import Fore, Back
 import threading
 from requests.exceptions import RequestException
 from http.client import IncompleteRead
 import tempfile
-from datetime import datetime
+#from datetime import datetime
 
 #DONE: fix scaling/distortion of the colorbar/legend
 #TODO: optimize the loading/subsetting of data - could cache to do multiple warnings in the same "wave"
@@ -329,7 +329,7 @@ def get_mrms_data_async(bbox, type, region):
             os.remove(tmp_path)
                 
     
-
+'''
 #old way, somewhat stable, doesn't survive dropped connections
 def get_mrms_data(bbox, type):
     """
@@ -399,7 +399,7 @@ def get_mrms_data(bbox, type):
         for idx_file in glob.glob(f"{grib_file}*.idx"):
             if os.path.exists(idx_file):
                 os.remove(idx_file)
-
+'''
 
 if __name__ == '__main__':
     # Define a bounding box for the Ohio region
