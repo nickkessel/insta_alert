@@ -74,7 +74,7 @@ WEBHOOKS = ['https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqO
 FACEBOOK = False
 DISCORD = False
 USE_TEST_BBOX = True
-ENABLE_SLIDESHOW = True # <-- Slideshow Toggle
+ENABLE_SLIDESHOW = False # <-- Slideshow Toggle
 
 # Define your area by zone or county
 target_bbox = { #this is the area that is being scanned for alerts as well

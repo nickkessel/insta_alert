@@ -5,8 +5,8 @@ import pytz
 import queue
 
 # --- Constants ---
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = 1430
+SCREEN_HEIGHT = 1060
 SLIDE_DURATION = 14  # Seconds to display a slide
 FADE_DURATION = 1    # Seconds for the crossfade transition
 TOTAL_SLIDE_TIME = SLIDE_DURATION + FADE_DURATION
