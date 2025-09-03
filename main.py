@@ -82,9 +82,10 @@ everything_bbox = { #includes AK, PR, HI
         "lat_max": 71
 }
 
-
-warning_types = ["Tornado Warning", "Severe Thunderstorm Warning", "Flash Flood Warning", 'Flood Advisory', "Special Weather Statement", "Special Marine Warning"]
-#warning_types = ['Flood Advisory']
+SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
+OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning']
+WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch']
+warning_types = WATCHES
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -133,7 +134,7 @@ def get_nws_alerts():
             else:
                 actual_bbox = target_bbox
 
-            if event_type in warning_types and any_point_in_bbox(geometry, actual_bbox):
+            if event_type in warning_types : #and any_point_in_bbox(geometry, actual_bbox)
                 print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
                 filtered_alerts.append(alert)
             #else:
@@ -201,6 +202,51 @@ def post_to_facebook(message, img_path): #message is string & img is https url r
 def clean_filename(name):
     return re.sub(r'[<>:"/\\|?*.]', '', name)
 
+def are_alerts_different(new_alert, ref_alert):
+    """
+    Compares a new alert with its reference to see if it's a significant update.
+    Returns True if it's new/different and should be posted.
+    Returns False if it's a non-critical duplicate update.
+    """
+    new_geom = new_alert.get('geometry')
+    ref_geom = ref_alert.get('geometry')
+
+    # Case 1: Both are polygon-based (e.g., Warnings)
+    if new_geom and ref_geom:
+        if shape(new_geom).equals(shape(ref_geom)):
+            print("Equal geometry, checking attributes...")
+            new_params = new_alert['properties']['parameters']
+            ref_params = ref_alert['properties']['parameters']
+            # Compare key attributes that would trigger a new post
+            if (new_params.get('maxWindGust') == ref_params.get('maxWindGust') and
+                    new_params.get('maxHailSize') == ref_params.get('maxHailSize')):
+                print("Attributes are the same. This is a duplicate update.")
+                return False
+            else:
+                print("Attributes have changed. This is a significant update.")
+                return True
+        else:
+            print("Geometries are different.")
+            return True
+
+    # Case 2: Both are zone-based (e.g., Watches)
+    elif not new_geom and not ref_geom:
+        # Compare by checking if the set of affected zones (UGC codes) is identical
+        new_ugc = set(new_alert['properties']['geocode'].get('UGC', []))
+        ref_ugc = set(ref_alert['properties']['geocode'].get('UGC', []))
+        
+        if new_ugc == ref_ugc:
+            print("Affected zones (UGC) are the same. This is a duplicate update.")
+            return False
+        else:
+            print("Affected zones (UGC) have changed.")
+            return True
+
+    # Case 3: Mixed types (one is polygon, one is zone). Treat as different.
+    else:
+        print("Alert type (polygon vs. zone) differs from reference.")
+        return True
+
 check_time = 60 #seconds of downtime between scans
 
 def main():
@@ -246,7 +292,7 @@ def main():
                     print(Fore.RED + f"Null check failed, SVR/SVS expired {clickable_alert_id}")
                 else:
                     null_check_passed = True
-            if awips_id[:2] == "FF": #same but for ffws
+            if awips_id[:3] == "FFW" or awips_id[:3] == "FFS": #same but for ffws
                 if (floodDetection == "n/a"): #fix so it seperates svr and ffw so they dont always null out
                     null_check_passed = False
                     print(Fore.RED + f"Null check failed, FFW expired {clickable_alert_id}")
@@ -254,33 +300,21 @@ def main():
                     null_check_passed = True
 
             ref_check_passed = True #default to true as not every alert has a ref check
-            if len(references) != 0: #check if alert refs older ones, and if they have the same lat/lon, then check if they have the same attributes
-                ref_url = references[0]['@id']
-
-                ref_response = requests.get(ref_url, headers={"User-Agent": "weather-alert-bot - kesse1ni@cmich.edu"}) #SHOULD just return a single alert
-                ref_response.raise_for_status()
-                ref_data = ref_response.json()
-                ref_geom = ref_data['geometry']
-                #print(new_geom)
-                #print(ref_geom)
-                new_shape = shape(new_geom) #shapely object to check for equals
-                ref_shape = shape(ref_geom)
-                ref_maxWind = ref_data['properties']['parameters'].get('maxWindGust', ["n/a"])[0]
-                ref_maxHail = ref_data['properties']['parameters'].get('maxHailSize', ["n/a"])[0]
-                print(Fore.LIGHTMAGENTA_EX + f"alert ({clickable_alert_id}) has ref: {ref_url}")
-                print(Fore.RESET)
-                if new_shape.equals(ref_shape):
-                    print("equal geometry, checking attributes")
-
-                    if ref_maxWind == maxWind and ref_maxHail == maxHail:
-                        print("new attributes = ref attributes, not posting")
+            references = properties.get('references')
+            if references:
+                try:
+                    ref_url = references[0]['@id']
+                    print(Fore.LIGHTMAGENTA_EX + f"Alert ({alert_id}) has reference: {ref_url}" + Fore.RESET)
+                    ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
+                    ref_response.raise_for_status()
+                    ref_data = ref_response.json()
+                    
+                    # Use the helper function to determine if it's a duplicate
+                    if not are_alerts_different(alert, ref_data):
                         ref_check_passed = False
-                    elif (ref_maxWind != maxWind) or (ref_maxHail != maxHail): #TODO: rework that logic here
-                        print("new attributes differ from old ones, posting")
-                        ref_check_passed = True
-                else:
-                    print("new alert has new geometry")
-                    ref_check_passed = True
+                        print("Conclusion: Alert is not a significant update. Skipping.")
+                except Exception as e:
+                    print(Fore.RED + f"Error processing reference alert: {e}" + Fore.RESET)
 
             if alert_id not in posted_alerts and null_check_passed == True and ref_check_passed == True:
                 message = (

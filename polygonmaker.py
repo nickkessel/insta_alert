@@ -11,9 +11,11 @@ import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
 import time
+from shapely import unary_union
 from colorama import Back, Fore, Style
 from plot_mrms2 import get_mrms_data_async
 import re
+import requests
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -37,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.3.7" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -69,6 +71,21 @@ ALERT_COLORS = {
         'edgecolor': "#00d168",
         'fillalpha': '50'
     },
+    'Severe Thunderstorm Watch': {
+        'facecolor': "#FFD489",
+        'edgecolor': "#FFC45E",
+        'fillalpha': '50'
+    },
+    'Tornado Watch': {
+        'facecolor': "#DE88A4",
+        'edgecolor': "#EB5486",
+        'fillalpha': '50'
+    },
+    'Flood Watch': {
+        'facecolor': "#2E8B57",
+        'edgecolor': "#168445",
+        'fillalpha': '50'
+    },
     "default": {
         "facecolor": "#b7b7b7", # grey
         "edgecolor": "#414141", # dark grey
@@ -81,6 +98,7 @@ ALERT_COLORS = {
 #COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
 
 start_time = time.time()
+zone_geometry_cache = {}
 
 print(Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 df_large = pd.read_csv('filtered_cities_all.csv')
@@ -225,33 +243,98 @@ test_alert4 =  { #ffw
             }
         }
 
+def get_alert_geometry(alert):
+    """
+    Determines the geometry for an alert. 
+    If the alert has a direct geometry, it uses that.
+    If not, it fetches and combines geometries from the affected zones.
+    """
+    # Check for a direct polygon geometry first
+    geometry_data = alert.get("geometry")
+    if geometry_data:
+        print("Processing polygon-based alert.")
+        return shape(geometry_data)
+
+    # If no direct geometry, process as a zone-based alert (e.g., a Watch)
+    print("Processing zone-based alert (geometry is null).")
+    affected_zones = alert['properties'].get('affectedZones', [])
+    if not affected_zones:
+        print(Fore.YELLOW + "Alert has no geometry and no affected zones." + Fore.RESET)
+        return None
+    
+    geometries = []
+    print(f"Fetching geometries for {len(affected_zones)} zones...")
+    for zone_url in affected_zones:
+        if zone_url in zone_geometry_cache: # Check cache first to reduce API calls
+            geometries.append(zone_geometry_cache[zone_url])
+            continue
+        
+        try:
+            # Fetch zone data from the NWS API
+            response = requests.get(zone_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"}, timeout=10)
+            response.raise_for_status()
+            zone_geom_data = response.json().get('geometry')
+            
+            if zone_geom_data:
+                zone_shape = shape(zone_geom_data)
+                geometries.append(zone_shape)
+                zone_geometry_cache[zone_url] = zone_shape # Add to cache
+        except requests.RequestException as e:
+            print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}" + Fore.RESET)
+            continue
+    if not geometries:
+        print(Fore.RED + "Could not retrieve any geometries for the affected zones." + Fore.RESET)
+        return None
+
+    # Combine all individual zone polygons into one single shape
+    combined_geometry = unary_union(geometries)
+    print("Successfully combined zone geometries.")
+    return combined_geometry
+
+
+def draw_alert_shape(ax, shp, colors):
+    """Helper function to draw single or multi-polygons on the map."""
+    polygons_to_draw = []
+    if shp.geom_type == 'Polygon':
+        polygons_to_draw = [shp]
+    elif shp.geom_type == 'MultiPolygon':
+        polygons_to_draw = shp.geoms
+
+    for poly in polygons_to_draw:
+        x, y = poly.exterior.xy
+        # Plot fill and borders
+        ax.fill(x, y, facecolor=colors['facecolor'] + colors['fillalpha'], zorder=0)
+        ax.plot(x, y, color='#000000', linewidth=4, transform=ccrs.PlateCarree(), zorder=4)
+        ax.plot(x, y, color=colors['edgecolor'], linewidth=2, transform=ccrs.PlateCarree(), zorder=4)
+
 
 def plot_alert_polygon(alert, output_path):
     plot_start_time = time.time()
-    geometry = alert.get("geometry")
+    geom = get_alert_geometry(alert)
     
-    if not geometry:
+    if not geom:
         print("No geometry found for alert.")
-        return None
+        return None, "Failed to generate graphic: No geometry found"
 
     try:
-        geom = shape(geometry)
         #print(geom)
         alert_type = alert['properties'].get("event") #tor, svr, ffw, etc
         expiry_time = alert['properties'].get("expires") #raw eastern time thing need to format to time
         issued_time = alert['properties'].get("sent")
         issuing_office = alert['properties'].get("senderName")
+        #time formatting
         dt = datetime.fromisoformat(expiry_time)
         eastern = pytz.timezone("US/Eastern")
         dt_eastern = dt.astimezone(eastern)
         formatted_expiry_time = dt_eastern.strftime("%B %d, %I:%M %p %Z")
-        
         dt1 = datetime.fromisoformat(issued_time)
         dt1_eastern = dt1.astimezone(eastern)
         formatted_issued_time = dt1_eastern.strftime("%I:%M %p %Z")
         print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
 
+        #plot setup
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
+        colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
         ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
         
         counties_full_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
@@ -378,7 +461,7 @@ def plot_alert_polygon(alert, output_path):
         elif alert_height <= 1:
             min_distance_deg = 0.04
         '''
-        min_distance_deg = alert_height/5
+        min_distance_deg = alert_height/7
         
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
@@ -454,6 +537,8 @@ def plot_alert_polygon(alert, output_path):
         #ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
         
         # Draw the polygon
+        draw_alert_shape(ax, geom, colors)
+        '''
         if geom.geom_type == 'Polygon':
             fill_color = colors['facecolor'] + colors['fillalpha'] #rebuild the hexcode w/ alpha
             edge_color = colors ['edgecolor']
@@ -467,7 +552,7 @@ def plot_alert_polygon(alert, output_path):
                 x, y = poly.exterior.xy
                 print("how is there a multipolygon warning?? should look at this...")
                 ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)   
-        
+        '''
         #box to show info about hazards like hail/wind if applicable
         
         maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
