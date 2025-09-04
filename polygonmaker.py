@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -124,7 +124,7 @@ federal_roads_all = roads[roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'Roads loaded' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-test_alert4 =  { #ffw
+test_alert4 =  { 
             "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
             "type": "Feature",
             "geometry": {
@@ -195,7 +195,7 @@ test_alert4 =  { #ffw
                 "severity": "Severe",
                 "certainty": "Likely",
                 "urgency": "Immediate",
-                "event": "Flood Advisory",
+                "event": "Severe Thunderstorm Warning",
                 "sender": "w-nws.webmaster@noaa.gov",
                 "senderName": "NWS Wilmington OH",
                 "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
@@ -204,7 +204,7 @@ test_alert4 =  { #ffw
                 "response": "Avoid",
                 "parameters": {
                     "AWIPSidentifier": [
-                        "FFSABQ"
+                        "SVRILN"
                     ],
                     "WMOidentifier": [
                         "WGUS75 KABQ 092114"
@@ -217,6 +217,12 @@ test_alert4 =  { #ffw
                     ],
                     "flashFloodDamageThreat": [
                         "CONSIDERABLE"
+                    ],
+                    "maxWindGust":[
+                      "70MPH"  
+                    ],
+                    "windThreat":[
+                      'OBSERVED'  
                     ],
                     "BLOCKCHANNEL": [
                         "EAS",
@@ -313,7 +319,7 @@ def draw_alert_shape(ax, shp, colors):
         ax.plot(x, y, color=colors['edgecolor'], linewidth=2, transform=ccrs.PlateCarree(), zorder=4)
 
 
-def plot_alert_polygon(alert, output_path):
+def plot_alert_polygon(alert, output_path, mrms_plot):
     plot_start_time = time.time()
     geom = get_alert_geometry(alert)
     
@@ -409,36 +415,44 @@ def plot_alert_polygon(alert, output_path):
             region = 'GU'
         else:
             region = 'US'
-        subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)
-        #directly plot the MRMS data onto the main axes (and colorbar, seperately)
-        if subset is not None:
-            im = ax.pcolormesh(
-                subset.longitude, subset.latitude, subset.unknown,
-                transform=ccrs.PlateCarree(),
-                cmap=cmap, vmin=vmin, vmax=vmax, zorder=1
-            )
-            '''this plots the colorbar off to the side (dont want)
-            cbar = fig.colorbar(im, ax=ax, orientation='vertical', shrink=0.75, aspect=20, pad=0.02)
-            cbar.set_label(cbar_label, color="#7a7a7a", fontsize=10, weight='bold')
-            cbar.ax.tick_params(labelsize=8)
-            '''
-            # The list is [left, bottom, width, height] as fractions of the main plot area.
-            cax = ax.inset_axes([0.875, 0.17, 0.03, 0.75])
-            cax.set_facecolor('#0000004d')
             
-            cbar = fig.colorbar(im, cax=cax, orientation = 'vertical')
-            cbar.set_label(cbar_label, color="#000000", fontsize=10, weight='bold')
-            label_text = cbar.ax.yaxis.get_label()
-            label_text.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'white')])
+        if mrms_plot == True:
+            subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)
+            #directly plot the MRMS data onto the main axes (and colorbar, seperately)
+            if subset is not None:
+                im = ax.pcolormesh(
+                    subset.longitude, subset.latitude, subset.unknown,
+                    transform=ccrs.PlateCarree(),
+                    cmap=cmap, vmin=vmin, vmax=vmax, zorder=1
+                )
+                '''this plots the colorbar off to the side (dont want)
+                cbar = fig.colorbar(im, ax=ax, orientation='vertical', shrink=0.75, aspect=20, pad=0.02)
+                cbar.set_label(cbar_label, color="#7a7a7a", fontsize=10, weight='bold')
+                cbar.ax.tick_params(labelsize=8)
+                '''
+                # The list is [left, bottom, width, height] as fractions of the main plot area.
+                cax = ax.inset_axes([0.875, 0.17, 0.03, 0.75])
+                cax.set_facecolor('#0000004d')
+                
+                cbar = fig.colorbar(im, cax=cax, orientation = 'vertical')
+                cbar.set_label(cbar_label, color="#000000", fontsize=10, weight='bold')
+                label_text = cbar.ax.yaxis.get_label()
+                label_text.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'white')])
 
-            cbar.ax.tick_params(labelsize=8, color= 'white', labelcolor = 'white')
-            
-            for label in cbar.ax.get_yticklabels():
-                label.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'black')])
-                label.set_fontweight('heavy')
-            
+                cbar.ax.tick_params(labelsize=8, color= 'white', labelcolor = 'white')
+                
+                for label in cbar.ax.get_yticklabels():
+                    label.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'black')])
+                    label.set_fontweight('heavy')
+                
+                ax.text(0.99, 0.985, f"Radar data valid {radar_valid_time}", #radar time
+                transform=ax.transAxes, ha='right', va='top', 
+                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 7)
+                
+            else:
+                print("skipping plotting radar, no data returned from get_mrms_data")
         else:
-            print("skipping plotting radar, no data returned from get_mrms_data")
+            print('not plotting MRMS')
         
         #filter for only cities in map view
         visible_cities_df = df_large[
@@ -466,7 +480,7 @@ def plot_alert_polygon(alert, output_path):
         elif alert_height <= 1:
             min_distance_deg = 0.04
         '''
-        min_distance_deg = alert_height/7
+        min_distance_deg = alert_height/8
         
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
@@ -533,9 +547,7 @@ def plot_alert_polygon(alert, output_path):
         ax.text(0.01, 0.985, f"Issued {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
-        ax.text(0.99, 0.985, f"Radar data valid {radar_valid_time}", #radar time
-                transform=ax.transAxes, ha='right', va='top', 
-                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 7)
+
         
         #draw radar data in bg, only above the polygon
         #mrms_img = mpimg.imread(radar_image_path) 
@@ -589,14 +601,7 @@ def plot_alert_polygon(alert, output_path):
                         maxHail = float(hail_match.group(1))
                     except ValueError:
                         print('could not parse hail size from description')
-        #add observed tag to wind/hail threat
-        if maxHail:
-            maxHail = f'{str(maxHail)}in' #add units
-        if windObserved == 'OBSERVED':
-            maxWind = f"{str(maxWind)} ({windObserved})"
-        if hailObserved == 'OBSERVED':
-            maxHail = f"{str(maxHail)} ({hailObserved})"
-            
+             
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
             (maxHail, 'Max. Hail Size', ""),
@@ -609,11 +614,33 @@ def plot_alert_polygon(alert, output_path):
             (snowSquallDetection, 'Snow Squall', ""),
             (floodDetection, 'Flash Flood', "")
         ]
+
         details_text_lines = []
         for value, label, suffix in hazard_details:
-            if value != "n/a" and value != "n/ain":
-                val_str = str(value).replace(" ", r"\ ") + suffix
-                details_text_lines.append(f"{label}: $\\bf{{{val_str}}}$")
+            if value != "n/a":
+                # Escape any spaces in the value for LaTeX rendering
+                escaped_value = str(value).replace(" ", r"\ ")
+                
+                # Start the LaTeX string with the bolded value and its unit/suffix
+                # Example: $\bf{1.25in}
+                formatted_string = f"$\\bf{{{escaped_value}{suffix}}}"
+                
+                # Check if the 'OBSERVED' tag is needed for this specific hazard
+                is_observed = False
+                if label == 'Max. Wind Gusts' and windObserved == 'OBSERVED':
+                    is_observed = True
+                elif label == 'Max. Hail Size' and hailObserved == 'OBSERVED':
+                    is_observed = True
+                
+                if is_observed:
+                    # If observed, add a space and the italicized tag
+                    # Example: \ \mathit{(OBSERVED)}
+                    formatted_string += r"\ \mathit{(observed)}"
+
+                # Close the LaTeX math string
+                formatted_string += "$"
+                
+                details_text_lines.append(f"{label}: {formatted_string}")
 
         details_text = "\n".join(details_text_lines)
         
@@ -705,4 +732,4 @@ def plot_alert_polygon(alert, output_path):
         return None, None
 
 
-#plot_alert_polygon(test_alert4, 'graphics/suspect1')
+plot_alert_polygon(test_alert4, 'graphics/0obstest4', False)

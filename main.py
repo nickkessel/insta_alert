@@ -85,7 +85,7 @@ everything_bbox = { #includes AK, PR, HI
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
 OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch']
-warning_types = WATCHES
+warning_types = SEVERE + OTHER
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -324,7 +324,7 @@ def main():
                 print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
                 alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
                 try: #try/except as we were getting incomplete file errors!
-                    path, statement = plot_alert_polygon(alert, alert_path)
+                    path, statement = plot_alert_polygon(alert, alert_path, True)
 
                     # --- If slideshow is enabled, send it the new alert info ---
                     if ENABLE_SLIDESHOW and path and expiry_time_iso:

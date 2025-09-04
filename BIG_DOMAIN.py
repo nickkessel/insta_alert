@@ -1,4 +1,5 @@
 #Use this to test things in real scenario with no local alerts - should work for anywhere in the country - will be SLOW - no posting to fb function
+#DEPRECATED
 import matplotlib.pyplot as plt #imports :-)
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
