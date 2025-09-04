@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -114,145 +114,15 @@ logo = mpimg.imread(logo_path)
 print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading roads' + Back.RESET)
 roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
 print(Back.LIGHTWHITE_EX + 'Roads loaded. Loading TIGER .shp' + Back.RESET)
-counties_full_gdf = gpd.read_file('counties/cb_2023_us_county_5m.shp') #load counties shapefile
+counties_full_gdf = gpd.read_file('counties500k/cb_2023_us_county_500k.shp') #load counties shapefile, highres (500k)
 print(Back.LIGHTWHITE_EX + 'TIGER data loaded. Processing state borders.' + Back.RESET)
 states_gdf = counties_full_gdf.dissolve(by='STATEFP') #find state borders from the county geometry
-print(Back.LIGHTWHITE_EX + 'State borders processed. Loading roads' + Back.RESET)
+print(Back.LIGHTWHITE_EX + 'State borders processed. Filtering roads' + Back.RESET)
 
 interstates_all = roads[roads['level'] == 'Interstate']
 federal_roads_all = roads[roads['level'] == 'Federal']
-print(Back.LIGHTWHITE_EX + 'Roads loaded' + Back.RESET)
+print(Back.LIGHTWHITE_EX + 'Roads filtered.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
-
-test_alert4 =  { 
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                [
-                    -80.33,
-                    25.9899999
-                ],
-                [
-                    -80.31,
-                    25.94
-                ],
-                [
-                    -80.42,
-                    25.950000000000003
-                ],
-                [
-                    -80.4,
-                    25.989999900000004
-                ],
-                [
-                    -80.33,
-                    25.9899999
-                ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "areaDesc": "Loveland, OH",
-                "geocode": {
-                    "SAME": [
-                        "035047"
-                    ],
-                    "UGC": [
-                        "NMC047"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/NMC047"
-                ],
-                "references": [
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T12:54:00-06:00"
-                    },
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T13:51:00-06:00"
-                    }
-                ],
-                "sent": "2025-06-09T15:14:00-06:00",
-                "effective": "2025-06-09T15:14:00-06:00",
-                "onset": "2025-06-09T15:14:00-06:00",
-                "expires": "2025-06-09T16:00:00-06:00",
-                "ends": "2025-06-09T16:00:00-06:00",
-                "status": "Actual",
-                "messageType": "Update",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Likely",
-                "urgency": "Immediate",
-                "event": "Severe Thunderstorm Warning",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Wilmington OH",
-                "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
-                "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
-                "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
-                "response": "Avoid",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "SVRILN"
-                    ],
-                    "WMOidentifier": [
-                        "WGUS75 KABQ 092114"
-                    ],
-                    "NWSheadline": [
-                        "FLASH FLOOD WARNING FOR THE HERMITS PEAK AND CALF CANYON BURN SCAR REMAINS IN EFFECT UNTIL 4 PM MDT THIS AFTERNOON FOR NORTHWESTERN SAN MIGUEL COUNTY"
-                    ],
-                    "flashFloodDetection": [
-                        "RADAR INDICATED"
-                    ],
-                    "flashFloodDamageThreat": [
-                        "CONSIDERABLE"
-                    ],
-                    "maxWindGust":[
-                      "70MPH"  
-                    ],
-                    "windThreat":[
-                      'OBSERVED'  
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.CON.KABQ.FF.W.0031.000000T0000Z-250609T2200Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-06-09T16:00:00-06:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "FFS"
-                    ],
-                    "NationalWeatherService": [
-                        "FFW"
-                    ]
-                }
-            }
-        }
 
 def get_alert_geometry(alert):
     """
@@ -732,4 +602,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         return None, None
 
 
-plot_alert_polygon(test_alert4, 'graphics/0obstest4', False)
+#plot_alert_polygon(test_alert4, 'graphics/test6', True)
