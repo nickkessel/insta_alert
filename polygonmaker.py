@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -66,19 +66,24 @@ ALERT_COLORS = {
         "edgecolor": "#00cdc6", # darker teal
         "fillalpha": "50"
     },
+    "Dust Storm Warning": {
+        "facecolor": "#FFE4C4",
+        "edgecolor": "#968672",
+        "fillalpha": "50"
+    },
     'Flood Advisory': {
         'facecolor': '#00ff7f',
         'edgecolor': "#00d168",
         'fillalpha': '50'
     },
     'Severe Thunderstorm Watch': {
-        'facecolor': "#FFD489",
-        'edgecolor': "#FFC45E",
+        'facecolor': "#DB7093", #pink because i hate nick
+        'edgecolor': "#8f4a61",
         'fillalpha': '50'
     },
     'Tornado Watch': {
-        'facecolor': "#DE88A4",
-        'edgecolor': "#EB5486",
+        'facecolor': "#FFFF00", #also yellow because i hate nick
+        'edgecolor': "#b8b800",
         'fillalpha': '50'
     },
     'Flood Watch': {
@@ -640,10 +645,10 @@ def plot_alert_polygon(alert, output_path):
             pdsBox_text = "A tornado is POSSIBLE with this storm!"
             pdsBox_color = colors['facecolor']
         elif waterspoutDetection == 'OBSERVED':
-            pdsBox_text = "Waterspouts have been observed with this storm!\nHead to shore immediately!"
+            pdsBox_text = "Waterspouts have been observed with this storm!\nSeek safe harbor immediately!"
             pdsBox_color = colors['facecolor'] #cyan/teal if its an SMW
         elif waterspoutDetection == 'POSSIBLE':
-            pdsBox_text = "A Waterspout is POSSIBLE with this storm!\nHead to shore immediately!"
+            pdsBox_text = "Waterspouts are POSSIBLE with this storm!\nSeek safe harbor immediately!"
             pdsBox_color = colors['facecolor']
         
         #create container

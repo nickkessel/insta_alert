@@ -1,23 +1,23 @@
 from colorama import Fore, Back
 import time
 load_time = time.time()
-print(Back.LIGHTWHITE_EX + 'Load 1' + Back.RESET)
+print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 1' + Fore.RESET + Back.RESET)
 from shapely.geometry import shape
 import requests
 import json
 import requests
-print(Back.LIGHTWHITE_EX + 'Load 2' + Back.RESET)
+print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 2' + Fore.RESET + Back.RESET)
 import re
 from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
-print(Back.LIGHTWHITE_EX + 'Load 3' + Back.RESET)
+print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import threading #slideshow
 import queue #slideshow
 load_dotenv()
 load_done_time = time.time() - load_time
-print(Back.GREEN + f'imports imported succesfully {load_done_time:.2f}s' + Back.RESET)
+print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
 #TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
 #DONE different color warnings tor = red, svr = yellow, flashflood = green, tor-r = wideborder red, pds-tor = magenta, svr-destructive/considerable = wideborder yellow
 #DONE add to header text expiration time for warning
@@ -83,7 +83,7 @@ everything_bbox = { #includes AK, PR, HI
 }
 
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
-OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning']
+OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch']
 warning_types = WATCHES
 # Store already posted alerts to prevent duplicates
