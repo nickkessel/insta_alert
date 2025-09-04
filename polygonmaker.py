@@ -645,7 +645,7 @@ def plot_alert_polygon(alert, output_path):
             pdsBox_text = "A tornado is POSSIBLE with this storm!"
             pdsBox_color = colors['facecolor']
         elif waterspoutDetection == 'OBSERVED':
-            pdsBox_text = "Waterspouts have been observed with this storm!\nSeek save harbor immediately!"
+            pdsBox_text = "Waterspouts have been observed with this storm!\nSeek safe harbor immediately!"
             pdsBox_color = colors['facecolor'] #cyan/teal if its an SMW
         elif waterspoutDetection == 'POSSIBLE':
             pdsBox_text = "Waterspouts are POSSIBLE with this storm!\nSeek safe harbor immediately!"
