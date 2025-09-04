@@ -10,3 +10,5 @@
 /api_scrape.py
 /loggedAlerts
 /counties5m
+/gis_preprocess.py
+/counties500k
