@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -109,7 +109,7 @@ print(Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 df_large = pd.read_csv('filtered_cities_all.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
-logo_path= 'cincyweathernobg.png'
+logo_path= 'testlogo1.png'
 logo = mpimg.imread(logo_path)
 
 print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + Back.RESET)
@@ -118,12 +118,13 @@ counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties'
 states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
-roads = gpd.read_file("gis/roads2/tl_2024_us_primaryroads.shp")
-print("Unique Route Types (RTTYP) found in the shapefile:", roads['RTTYP'].unique())
+highres_roads = gpd.read_file("gis/roads2/tl_2024_us_primaryroads.shp")
+lowres_roads = gpd.read_file('gis/ne_10m_roads/ne_10m_roads.shp') #can't find a better national dataset for us highways
+#print("Unique Route Types (RTTYP) found in the shapefile:", highres_roads['RTTYP'].unique())
 
 print(Back.LIGHTWHITE_EX + 'Roads loaded. Filtering roads.' + Back.RESET)
-interstates = roads[roads['RTTYP'] == 'I']
-us_highways = roads[roads['RTTYP'] == 'U']
+interstates = highres_roads[highres_roads['RTTYP'] == 'I']
+us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
@@ -135,58 +136,26 @@ test_alert4 =  { #ffw
                 "type": "Polygon",
                 "coordinates": [
                     [
-                        [
-                            -84.46289,
-                            39.118
-                        ],
-                        [
-                            -84.438,
-                            39.07933
-                        ],
-                        [
-                            -84.31732,
-                            39.11132
-                        ],
-                        [
-                            -84.21021,
-                            39.19654
-                        ],
-                        [
-                            -84.21661,
-                            39.29605
-                        ],
-                        [
-                            -84.20471,
-                            39.40704
-                        ],
-                        [
-                            -84.26102,
-                            39.42296
-                        ],
-                        [
-                            -84.30496,
-                            39.42296
-                        ],
-                        [
-                            -84.3132,
-                            39.2859
-                        ],
-                        [
-                            -84.31732,
-                            39.23061
-                        ],
-                        [
-                            -84.44092,
-                            39.14116
-                        ],
-                        [
-                            -84.45282,
-                            39.12011
-                        ],
-                        [
-                            -84.45190,
-                            39.14329
-                        ]
+                              [
+        -87.9006957,
+        42.0811446
+      ],
+      [
+        -88.1121825,
+        41.8799586
+      ],
+      [
+        -87.4845886,
+        41.4911189
+      ],
+      [
+        -87.231903,
+        41.8451719
+      ],
+      [
+        -87.9006957,
+        42.0811446
+      ]
                     ]
                 ]
             },
@@ -231,9 +200,9 @@ test_alert4 =  { #ffw
                 "severity": "Severe",
                 "certainty": "Likely",
                 "urgency": "Immediate",
-                "event": "Flash Flood Warning",
+                "event": "Test Alert",
                 "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Wilmington OH",
+                "senderName": "NWS Test NA",
                 "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
                 "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
                 "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
@@ -250,6 +219,12 @@ test_alert4 =  { #ffw
                     ],
                     "flashFloodDetection": [
                         "RADAR INDICATED"
+                    ],
+                    "maxHailSize":[
+                        "0.00"
+                    ], 
+                    'hailThreat':[
+                      'OBSERVED'  
                     ],
                     "flashFloodDamageThreat": [
                         "CONSIDERABLE"
@@ -382,8 +357,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
-        us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
-        interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
+        #us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
+        interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -634,7 +609,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
              
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
-            (maxHail, 'Max. Hail Size', ""),
+            (maxHail, 'Max. Hail Size', "in"),
             (floodSeverity, 'Damage Threat', ""),
             (tStormSeverity, 'Damage Threat', ""),
             (torSeverity, 'Damage Threat', ""),
@@ -725,7 +700,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             )
         
         #add watermark
-        imagebox = OffsetImage(logo, zoom = 0.09, alpha = 0.75)
+        imagebox = OffsetImage(logo, zoom = 0.25, alpha = 1.0)
         ab = AnnotationBbox(
             imagebox,
             xy=(0.98, 0.02),
@@ -762,4 +737,5 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         return None, None
 
 
-plot_alert_polygon(test_alert4, 'graphics/roadtest7', False)
+if __name__ == '__main__':  
+    plot_alert_polygon(test_alert4, 'graphics/test/logotest1', False)
