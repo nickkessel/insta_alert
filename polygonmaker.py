@@ -23,8 +23,8 @@ import requests
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
 #DONE: consider shrinking hazards box when theres more than x (3?4?) things in there
 #TODO: adjust city name boldness for readability (done-ish)
-#TODO: space out city names slightly more
-#TODO: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
+#DONE: space out city names slightly more
+#DONE: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
     #there aren't like big boxes with super dense city names with them
 #TODO: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
 #DONE: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -118,14 +118,171 @@ counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties'
 states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
-roads = gpd.read_file("gis/ne_10m_roads/ne_10m_roads.shp")
+roads = gpd.read_file("gis/roads2/tl_2024_us_primaryroads.shp")
+print("Unique Route Types (RTTYP) found in the shapefile:", roads['RTTYP'].unique())
 
 print(Back.LIGHTWHITE_EX + 'Roads loaded. Filtering roads.' + Back.RESET)
-interstates_all = roads[roads['level'] == 'Interstate']
-federal_roads_all = roads[roads['level'] == 'Federal']
+interstates = roads[roads['RTTYP'] == 'I']
+us_highways = roads[roads['RTTYP'] == 'U']
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
+
+test_alert4 =  { #ffw
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -84.46289,
+                            39.118
+                        ],
+                        [
+                            -84.438,
+                            39.07933
+                        ],
+                        [
+                            -84.31732,
+                            39.11132
+                        ],
+                        [
+                            -84.21021,
+                            39.19654
+                        ],
+                        [
+                            -84.21661,
+                            39.29605
+                        ],
+                        [
+                            -84.20471,
+                            39.40704
+                        ],
+                        [
+                            -84.26102,
+                            39.42296
+                        ],
+                        [
+                            -84.30496,
+                            39.42296
+                        ],
+                        [
+                            -84.3132,
+                            39.2859
+                        ],
+                        [
+                            -84.31732,
+                            39.23061
+                        ],
+                        [
+                            -84.44092,
+                            39.14116
+                        ],
+                        [
+                            -84.45282,
+                            39.12011
+                        ],
+                        [
+                            -84.45190,
+                            39.14329
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
+                "areaDesc": "Loveland, OH",
+                "geocode": {
+                    "SAME": [
+                        "035047"
+                    ],
+                    "UGC": [
+                        "NMC047"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC047"
+                ],
+                "references": [
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2025-06-09T12:54:00-06:00"
+                    },
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2025-06-09T13:51:00-06:00"
+                    }
+                ],
+                "sent": "2025-06-09T15:14:00-06:00",
+                "effective": "2025-06-09T15:14:00-06:00",
+                "onset": "2025-06-09T15:14:00-06:00",
+                "expires": "2025-06-09T16:00:00-06:00",
+                "ends": "2025-06-09T16:00:00-06:00",
+                "status": "Actual",
+                "messageType": "Update",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Wilmington OH",
+                "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
+                "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
+                "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
+                "response": "Avoid",
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFSABQ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS75 KABQ 092114"
+                    ],
+                    "NWSheadline": [
+                        "FLASH FLOOD WARNING FOR THE HERMITS PEAK AND CALF CANYON BURN SCAR REMAINS IN EFFECT UNTIL 4 PM MDT THIS AFTERNOON FOR NORTHWESTERN SAN MIGUEL COUNTY"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "flashFloodDamageThreat": [
+                        "CONSIDERABLE"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KABQ.FF.W.0031.000000T0000Z-250609T2200Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2025-06-09T16:00:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFS"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        }
 
 def get_alert_geometry(alert):
     """
@@ -225,8 +382,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
-        interstates_all.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
-        federal_roads_all.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 3)
+        us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
+        interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 3)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -341,7 +498,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         text_candidates = []
         plotted_points = []
         alert_height = maxy - miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
-        print(alert_height) 
+        print(f'alert height: {alert_height}') 
         '''
         #this could honestly maybe be like dynamically scaled?
         if alert_height > 1 and alert_height <= 1.75: 
@@ -605,4 +762,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         return None, None
 
 
-#plot_alert_polygon(test_alert4, 'graphics/test6', True)
+plot_alert_polygon(test_alert4, 'graphics/roadtest7', False)
