@@ -39,7 +39,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.4.7" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -129,135 +129,176 @@ us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-test_alert4 =  { #ffw
-            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                    [
-                              [
-        -87.9006957,
-        42.0811446
-      ],
-      [
-        -88.1121825,
-        41.8799586
-      ],
-      [
-        -87.4845886,
-        41.4911189
-      ],
-      [
-        -87.231903,
-        41.8451719
-      ],
-      [
-        -87.9006957,
-        42.0811446
-      ]
-                    ]
-                ]
-            },
-            "properties": {
-                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "@type": "wx:Alert",
-                "id": "urn:oid:2.49.0.1.840.0.cd9fca696e509c734f6e0628e089c15e84b7d00c.001.1",
-                "areaDesc": "Loveland, OH",
-                "geocode": {
-                    "SAME": [
-                        "035047"
-                    ],
-                    "UGC": [
-                        "NMC047"
-                    ]
-                },
-                "affectedZones": [
-                    "https://api.weather.gov/zones/county/NMC047"
-                ],
-                "references": [
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.502bb0376969acc429253a3c33af73ed1323a594.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T12:54:00-06:00"
-                    },
-                    {
-                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "identifier": "urn:oid:2.49.0.1.840.0.97f4f3a2c4916c4f559d3b2473874e48db4ca309.001.1",
-                        "sender": "w-nws.webmaster@noaa.gov",
-                        "sent": "2025-06-09T13:51:00-06:00"
-                    }
-                ],
-                "sent": "2025-06-09T15:14:00-06:00",
-                "effective": "2025-06-09T15:14:00-06:00",
-                "onset": "2025-06-09T15:14:00-06:00",
-                "expires": "2025-06-09T16:00:00-06:00",
-                "ends": "2025-06-09T16:00:00-06:00",
-                "status": "Actual",
-                "messageType": "Update",
-                "category": "Met",
-                "severity": "Severe",
-                "certainty": "Likely",
-                "urgency": "Immediate",
-                "event": "Test Alert",
-                "sender": "w-nws.webmaster@noaa.gov",
-                "senderName": "NWS Test NA",
-                "headline": "Flash Flood Warning issued June 9 at 3:14PM MDT until June 9 at 4:00PM MDT by NWS Albuquerque NM",
-                "description": "At 314 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain over the Hermits Peak and Calf Canyon Burn Scar. Between 1 and\n1.5 inches of rain have fallen. Flash flooding is ongoing or\nexpected to begin shortly.\n\nExcessive rainfall over the burn scar will impact the Tecolote Creek\nand Gallinas River drainage areas. The debris flow can consist of\nrock, mud, vegetation and other loose materials.\n\nHAZARD...Life threatening flash flooding. Thunderstorms producing\nflash flooding in and around the Hermits Peak and Calf\nCanyon Burn Scar.\n\nSOURCE...Radar indicated.\n\nIMPACT...Life threatening flash flooding of areas in and around\nthe Hermits Peak and Calf Canyon Burn Scar.\n\nSome locations that will experience flash flooding include...\nEl Porvenir, Montezuma, Sapello, Tierra Monte, Gallinas, Mineral\nHill, Rociada, Manuelitas and San Geronimo.",
-                "instruction": "This is a life threatening situation. Heavy rainfall will cause\nextensive and severe flash flooding of creeks, streams and ditches\nin the Hermits Peak and Calf Canyon Burn Scar. Severe debris flows\ncan also be anticipated across roads. Roads and driveways may be\nwashed away in places. If you encounter flood waters, climb to\nsafety.\n\nBe aware of your surroundings and do not drive on flooded roads.",
-                "response": "Avoid",
-                "parameters": {
-                    "AWIPSidentifier": [
-                        "FFSABQ"
-                    ],
-                    "WMOidentifier": [
-                        "WGUS75 KABQ 092114"
-                    ],
-                    "NWSheadline": [
-                        "FLASH FLOOD WARNING FOR THE HERMITS PEAK AND CALF CANYON BURN SCAR REMAINS IN EFFECT UNTIL 4 PM MDT THIS AFTERNOON FOR NORTHWESTERN SAN MIGUEL COUNTY"
-                    ],
-                    "flashFloodDetection": [
-                        "RADAR INDICATED"
-                    ],
-                    "maxHailSize":[
-                        "0.00"
-                    ], 
-                    'hailThreat':[
-                      'OBSERVED'  
-                    ],
-                    "flashFloodDamageThreat": [
-                        "CONSIDERABLE"
-                    ],
-                    "BLOCKCHANNEL": [
-                        "EAS",
-                        "NWEM",
-                        "CMAS"
-                    ],
-                    "EAS-ORG": [
-                        "WXR"
-                    ],
-                    "VTEC": [
-                        "/O.CON.KABQ.FF.W.0031.000000T0000Z-250609T2200Z/"
-                    ],
-                    "eventEndingTime": [
-                        "2025-06-09T16:00:00-06:00"
-                    ]
-                },
-                "scope": "Public",
-                "code": "IPAWSv1.0",
-                "language": "en-US",
-                "web": "http://www.weather.gov",
-                "eventCode": {
-                    "SAME": [
-                        "FFS"
-                    ],
-                    "NationalWeatherService": [
-                        "FFW"
-                    ]
-                }
-            }
+suspect_sps =  {
+    "@context": [
+        "https://geojson.org/geojson-ld/geojson-context.jsonld",
+        {
+            "@version": "1.1",
+            "wx": "https://api.weather.gov/ontology#",
+            "@vocab": "https://api.weather.gov/ontology#"
         }
+    ],
+    "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
+    "type": "Feature",
+    "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+            [
+                [
+                    -82.61,
+                    33.9799999
+                ],
+                [
+                    -82.5699999,
+                    33.96
+                ],
+                [
+                    -82.59,
+                    34.02
+                ],
+                [
+                    -82.53,
+                    34.07
+                ],
+                [
+                    -82.48,
+                    34.08
+                ],
+                [
+                    -82.45,
+                    34.059999999999995
+                ],
+                [
+                    -82.33,
+                    34.059999999999995
+                ],
+                [
+                    -82.3,
+                    33.96999999999999
+                ],
+                [
+                    -82.25,
+                    34.01999999999999
+                ],
+                [
+                    -82.2,
+                    33.97999989999999
+                ],
+                [
+                    -82.18,
+                    33.83999999999999
+                ],
+                [
+                    -82.54,
+                    33.72999989999999
+                ],
+                [
+                    -82.60000000000001,
+                    33.82999999999999
+                ],
+                [
+                    -82.56999990000001,
+                    33.85999999999999
+                ],
+                [
+                    -82.58000000000001,
+                    33.86999999999999
+                ],
+                [
+                    -82.61000000000001,
+                    33.85999999999999
+                ],
+                [
+                    -82.65000000000002,
+                    33.979999899999996
+                ],
+                [
+                    -82.61,
+                    33.9799999
+                ]
+            ]
+        ]
+    },
+    "properties": {
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
+        "@type": "wx:Alert",
+        "id": "urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
+        "areaDesc": "Lincoln; McCormick",
+        "geocode": {
+            "SAME": [
+                "013181",
+                "045065"
+            ],
+            "UGC": [
+                "GAZ040",
+                "SCZ018"
+            ]
+        },
+        "affectedZones": [
+            "https://api.weather.gov/zones/forecast/GAZ040",
+            "https://api.weather.gov/zones/forecast/SCZ018"
+        ],
+        "references": [],
+        "sent": "2025-09-06T17:57:00-04:00",
+        "effective": "2025-09-06T17:57:00-04:00",
+        "onset": "2025-09-06T17:57:00-04:00",
+        "expires": "2025-09-06T18:30:00-04:00",
+        "ends": None,
+        "status": "Actual",
+        "messageType": "Alert",
+        "category": "Met",
+        "severity": "Moderate",
+        "certainty": "Observed",
+        "urgency": "Expected",
+        "event": "Special Weather Statement",
+        "sender": "w-nws.webmaster@noaa.gov",
+        "senderName": "NWS Columbia SC",
+        "headline": "Special Weather Statement issued September 6 at 5:57PM EDT by NWS Columbia SC",
+        "description": "At 556 PM EDT, Doppler radar was tracking a strong thunderstorm near\nBobby Brown State Park, or 13 miles northeast of Washington, moving\neast at 30 mph.\n\n...Boaters on Lake Strom Thurmond Should Seek Safe Harbor...\n\nHAZARD...Wind gusts 35 to 45 mph and pea size hail.\n\nSOURCE...Radar indicated.\n\nIMPACT...Gusty winds could knock down tree limbs and blow around\nunsecured objects. Minor damage to outdoor objects is\npossible.\n\nLocations impacted include...\nMcCormick, Lincolnton, Mccormick County Airport, Elijah Clark State\nPark, Lake Strom Thurmond, Bobby Brown State Park, Plum Branch,\nHickory Knob State Resort Park, Gill's Point, Bordeaux, Hester's\nFerry Campground, Broad River Campground, Mount Carmel, Baker Creek\nState Park, Leroy's Ferry Recreation Area, Willington, Curry Hill,\nMount Carmel Park, Chennault, and Whitetown.",
+        "instruction": "If outdoors, consider seeking shelter inside a building.",
+        "response": "Execute",
+        "parameters": {
+            "AWIPSidentifier": [
+                "SPSCAE"
+            ],
+            "WMOidentifier": [
+                "WWUS82 KCAE 062157"
+            ],
+            "NWSheadline": [
+                "A strong thunderstorm will impact portions of northern Lincoln and McCormick Counties through 630 PM EDT"
+            ],
+            "eventMotionDescription": [
+                "2025-09-06T21:56:00-00:00...storm...259DEG...25KT...33.91,-82.63"
+            ],
+            "maxWindGust": [
+                "50 MPH"
+            ],
+            "maxHailSize": [
+                "0.25"
+            ],
+            "BLOCKCHANNEL": [
+                "EAS",
+                "NWEM",
+                "CMAS"
+            ],
+            "EAS-ORG": [
+                "WXR"
+            ]
+        },
+        "scope": "Public",
+        "code": "IPAWSv1.0",
+        "language": "en-US",
+        "web": "http://www.weather.gov",
+        "eventCode": {
+            "SAME": [
+                "SPS"
+            ],
+            "NationalWeatherService": [
+                "SPS"
+            ]
+        }
+    }
+}
 
 def get_alert_geometry(alert):
     """
@@ -412,7 +453,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         office_awips = office_awips[3:]
         if office_awips == 'SJU':
             region = 'PR'
-        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG':
+        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU':
             region = 'AK'
         elif office_awips == 'HFO':
             region = 'HI'
@@ -738,4 +779,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__':  
-    plot_alert_polygon(test_alert4, 'graphics/test/logotest1', False)
+    plot_alert_polygon(suspect_sps, 'graphics/test/suspect_sps1', True)

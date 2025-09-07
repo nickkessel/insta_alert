@@ -121,6 +121,7 @@ def save_mrms_subset(bbox, type, state_borders):
     ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
     qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz" #past 1 hour, updated every 2min, with a 4-5min lag
     qpe3hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_03H/MRMS_RadarOnly_QPE_03H.latest.grib2.gz" #past 3 hours (only updated at the top of every hour???? better data but thats not great)
+    alaskaref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/MergedReflectivityAtLowestAltitude/MRMS_MergedReflectivityAtLowestAltitude.latest.grib2.gz'
     
     if type == "Flash Flood Warning":
         url = qpe1hr_url
@@ -130,7 +131,7 @@ def save_mrms_subset(bbox, type, state_borders):
         data_min, data_max = min_val3, max_val3
         cbar_label = "Radar Estimated Precipitation (1h)"
     else:
-        url = ref_url
+        url = alaskaref_url
         convert_units = False
         print("REF")
         cmap_to_use = radarscope_cmap
@@ -235,7 +236,7 @@ def get_mrms_data_async(bbox, type, region):
     """
 
     if region == 'AK':
-        ref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz  '
+        ref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/MergedReflectivityAtLowestAltitude/MRMS_MergedReflectivityAtLowestAltitude.latest.grib2.gz'
         qpe_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
     elif region == 'HI':
         ref_url = 'https://mrms.ncep.noaa.gov/2D/HAWAII/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz'
@@ -411,10 +412,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -125,
-        "lon_max": -70,
-        "lat_min": 25,
-        "lat_max": 50
+        "lon_min": -160,
+        "lon_max": -140,
+        "lat_min": 57,
+        "lat_max": 64
     }
 
     save_mrms_subset(test_bbox, "Flash Flood Warnindg", True)
