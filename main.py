@@ -85,7 +85,7 @@ everything_bbox = { #includes AK, PR, HI
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
 OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch']
-warning_types = SEVERE + OTHER
+warning_types = OTHER
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()

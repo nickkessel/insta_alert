@@ -16,6 +16,7 @@ from colorama import Back, Fore, Style
 from plot_mrms2 import get_mrms_data_async
 import re
 import requests
+from timezonefinderL import TimezoneFinder
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -39,7 +40,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.4.7" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -319,6 +320,12 @@ def get_alert_geometry(alert):
         print(Fore.YELLOW + "Alert has no geometry and no affected zones." + Fore.RESET)
         return None
     
+    alert_type = alert['properties'].get("event")
+    issuing_state = alert['properties'].get("senderName")[-2:]
+    print(issuing_state)
+    if issuing_state == 'AK' and alert_type == 'Special Weather Statement':
+        print('not plotting due to known errors with Alaska zone-based SPS.')
+        return None
     geometries = []
     print(f"Fetching geometries for {len(affected_zones)} zones...")
     for zone_url in affected_zones:
@@ -376,10 +383,26 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
     try:
         #print(geom)
         alert_type = alert['properties'].get("event") #tor, svr, ffw, etc
-        expiry_time = alert['properties'].get("expires") #raw eastern time thing need to format to time
+        expiry_time = alert['properties'].get("expires") #raw time thing need to format to time
         issued_time = alert['properties'].get("sent")
         issuing_office = alert['properties'].get("senderName")
-        #time formatting
+        
+        #new time stuff
+        tf = TimezoneFinder()
+        centerlon, centerlat = geom.centroid.x, geom.centroid.y
+        timezone_str = tf.timezone_at(lng=centerlon, lat= centerlat)
+        print(timezone_str)
+        alert_tz = pytz.timezone(timezone_str)
+        
+        dt_sent = datetime.fromisoformat(issued_time).astimezone(alert_tz)
+        dt_expires = datetime.fromisoformat(expiry_time).astimezone(alert_tz)
+        
+        formatted_issued_time = dt_sent.strftime("%I:%M %p %Z")
+        formatted_expiry_time = dt_expires.strftime("%B %d, %I:%M %p %Z")
+        print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+        
+        '''
+        #time formatting (old)
         dt = datetime.fromisoformat(expiry_time)
         eastern = pytz.timezone("US/Eastern")
         dt_eastern = dt.astimezone(eastern)
@@ -388,7 +411,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         dt1_eastern = dt1.astimezone(eastern)
         formatted_issued_time = dt1_eastern.strftime("%I:%M %p %Z")
         print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
-
+        '''
         #plot setup
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -453,7 +476,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         office_awips = office_awips[3:]
         if office_awips == 'SJU':
             region = 'PR'
-        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU':
+        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU' or office_awips == 'NSB':
             region = 'AK'
         elif office_awips == 'HFO':
             region = 'HI'
@@ -741,7 +764,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             )
         
         #add watermark
-        imagebox = OffsetImage(logo, zoom = 0.25, alpha = 1.0)
+        imagebox = OffsetImage(logo, zoom = 0.15, alpha = 0.9)
         ab = AnnotationBbox(
             imagebox,
             xy=(0.98, 0.02),
@@ -779,4 +802,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__':  
-    plot_alert_polygon(suspect_sps, 'graphics/test/suspect_sps1', True)
+    plot_alert_polygon(suspect_sps, 'graphics/test/tztest1', True)
