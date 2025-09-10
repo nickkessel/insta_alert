@@ -11,12 +11,13 @@ import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
 import time
-from shapely import unary_union
+from shapely import unary_union, buffer
 from colorama import Back, Fore, Style
 from plot_mrms2 import get_mrms_data_async
 import re
 import requests
 from timezonefinderL import TimezoneFinder
+import gc
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -40,7 +41,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -92,6 +93,11 @@ ALERT_COLORS = {
         'edgecolor': "#168445",
         'fillalpha': '50'
     },
+    'Flash Flood Watch': {
+        'facecolor': "#2E8B57",
+        'edgecolor': "#168445",
+        'fillalpha': '50'
+    },
     "default": {
         "facecolor": "#b7b7b7", # grey
         "edgecolor": "#414141", # dark grey
@@ -130,152 +136,54 @@ us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-suspect_sps =  {
-    "@context": [
-        "https://geojson.org/geojson-ld/geojson-context.jsonld",
-        {
-            "@version": "1.1",
-            "wx": "https://api.weather.gov/ontology#",
-            "@vocab": "https://api.weather.gov/ontology#"
-        }
-    ],
-    "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
+test_watch = {
+    "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
     "type": "Feature",
-    "geometry": {
-        "type": "Polygon",
-        "coordinates": [
-            [
-                [
-                    -82.61,
-                    33.9799999
-                ],
-                [
-                    -82.5699999,
-                    33.96
-                ],
-                [
-                    -82.59,
-                    34.02
-                ],
-                [
-                    -82.53,
-                    34.07
-                ],
-                [
-                    -82.48,
-                    34.08
-                ],
-                [
-                    -82.45,
-                    34.059999999999995
-                ],
-                [
-                    -82.33,
-                    34.059999999999995
-                ],
-                [
-                    -82.3,
-                    33.96999999999999
-                ],
-                [
-                    -82.25,
-                    34.01999999999999
-                ],
-                [
-                    -82.2,
-                    33.97999989999999
-                ],
-                [
-                    -82.18,
-                    33.83999999999999
-                ],
-                [
-                    -82.54,
-                    33.72999989999999
-                ],
-                [
-                    -82.60000000000001,
-                    33.82999999999999
-                ],
-                [
-                    -82.56999990000001,
-                    33.85999999999999
-                ],
-                [
-                    -82.58000000000001,
-                    33.86999999999999
-                ],
-                [
-                    -82.61000000000001,
-                    33.85999999999999
-                ],
-                [
-                    -82.65000000000002,
-                    33.979999899999996
-                ],
-                [
-                    -82.61,
-                    33.9799999
-                ]
-            ]
-        ]
-    },
+    "geometry": None,
     "properties": {
-        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
+        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
         "@type": "wx:Alert",
-        "id": "urn:oid:2.49.0.1.840.0.417d12dd09d8953b8ecfb726e0a840866639e4d0.001.1",
-        "areaDesc": "Lincoln; McCormick",
+        "id": "urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
+        "areaDesc": "Penobscot, ME; Piscataquis, ME",
         "geocode": {
             "SAME": [
-                "013181",
-                "045065"
+                "023019",
+                "023021"
             ],
             "UGC": [
-                "GAZ040",
-                "SCZ018"
+                "MEC019",
+                "MEC021"
             ]
         },
         "affectedZones": [
-            "https://api.weather.gov/zones/forecast/GAZ040",
-            "https://api.weather.gov/zones/forecast/SCZ018"
+            "https://api.weather.gov/zones/county/MEC019",
+            "https://api.weather.gov/zones/county/MEC021"
         ],
         "references": [],
-        "sent": "2025-09-06T17:57:00-04:00",
-        "effective": "2025-09-06T17:57:00-04:00",
-        "onset": "2025-09-06T17:57:00-04:00",
-        "expires": "2025-09-06T18:30:00-04:00",
-        "ends": None,
+        "sent": "2025-09-06T13:14:00-04:00",
+        "effective": "2025-09-06T13:14:00-04:00",
+        "onset": "2025-09-06T13:14:00-04:00",
+        "expires": "2025-09-06T20:00:00-04:00",
+        "ends": "2025-09-06T20:00:00-04:00",
         "status": "Actual",
         "messageType": "Alert",
         "category": "Met",
-        "severity": "Moderate",
-        "certainty": "Observed",
-        "urgency": "Expected",
-        "event": "Special Weather Statement",
+        "severity": "Severe",
+        "certainty": "Possible",
+        "urgency": "Future",
+        "event": "Severe Thunderstorm Watch",
         "sender": "w-nws.webmaster@noaa.gov",
-        "senderName": "NWS Columbia SC",
-        "headline": "Special Weather Statement issued September 6 at 5:57PM EDT by NWS Columbia SC",
-        "description": "At 556 PM EDT, Doppler radar was tracking a strong thunderstorm near\nBobby Brown State Park, or 13 miles northeast of Washington, moving\neast at 30 mph.\n\n...Boaters on Lake Strom Thurmond Should Seek Safe Harbor...\n\nHAZARD...Wind gusts 35 to 45 mph and pea size hail.\n\nSOURCE...Radar indicated.\n\nIMPACT...Gusty winds could knock down tree limbs and blow around\nunsecured objects. Minor damage to outdoor objects is\npossible.\n\nLocations impacted include...\nMcCormick, Lincolnton, Mccormick County Airport, Elijah Clark State\nPark, Lake Strom Thurmond, Bobby Brown State Park, Plum Branch,\nHickory Knob State Resort Park, Gill's Point, Bordeaux, Hester's\nFerry Campground, Broad River Campground, Mount Carmel, Baker Creek\nState Park, Leroy's Ferry Recreation Area, Willington, Curry Hill,\nMount Carmel Park, Chennault, and Whitetown.",
-        "instruction": "If outdoors, consider seeking shelter inside a building.",
-        "response": "Execute",
+        "senderName": "NWS Caribou ME",
+        "headline": "Severe Thunderstorm Watch issued September 6 at 1:14PM EDT until September 6 at 8:00PM EDT by NWS Caribou ME",
+        "description": "THE NATIONAL WEATHER SERVICE HAS ISSUED SEVERE THUNDERSTORM WATCH\n607 IN EFFECT UNTIL 8 PM EDT THIS EVENING FOR THE FOLLOWING AREAS\n\nIN MAINE THIS WATCH INCLUDES 2 COUNTIES\n\nIN EAST CENTRAL MAINE\n\nPENOBSCOT\n\nIN NORTH CENTRAL MAINE\n\nPISCATAQUIS\n\nTHIS INCLUDES THE CITIES OF BANGOR, BREWER, DOVER-FOXCROFT,\nGREENVILLE, GUILFORD, MILO, OLD TOWN, AND ORONO.",
+        "instruction": 'none',
+        "response": "Monitor",
         "parameters": {
             "AWIPSidentifier": [
-                "SPSCAE"
+                "WCNCAR"
             ],
             "WMOidentifier": [
-                "WWUS82 KCAE 062157"
-            ],
-            "NWSheadline": [
-                "A strong thunderstorm will impact portions of northern Lincoln and McCormick Counties through 630 PM EDT"
-            ],
-            "eventMotionDescription": [
-                "2025-09-06T21:56:00-00:00...storm...259DEG...25KT...33.91,-82.63"
-            ],
-            "maxWindGust": [
-                "50 MPH"
-            ],
-            "maxHailSize": [
-                "0.25"
+                "WWUS61 KCAR 061714"
             ],
             "BLOCKCHANNEL": [
                 "EAS",
@@ -284,6 +192,12 @@ suspect_sps =  {
             ],
             "EAS-ORG": [
                 "WXR"
+            ],
+            "VTEC": [
+                "/O.NEW.KCAR.SV.A.0607.250906T1714Z-250907T0000Z/"
+            ],
+            "eventEndingTime": [
+                "2025-09-06T20:00:00-04:00"
             ]
         },
         "scope": "Public",
@@ -292,10 +206,10 @@ suspect_sps =  {
         "web": "http://www.weather.gov",
         "eventCode": {
             "SAME": [
-                "SPS"
+                "SVA"
             ],
             "NationalWeatherService": [
-                "SPS"
+                "SVA"
             ]
         }
     }
@@ -352,8 +266,9 @@ def get_alert_geometry(alert):
 
     # Combine all individual zone polygons into one single shape
     combined_geometry = unary_union(geometries)
+    clean_geometry = buffer(combined_geometry, 0.001) #should remove tiny/weird overlaps.
     print("Successfully combined zone geometries.")
-    return combined_geometry
+    return clean_geometry
 
 
 def draw_alert_shape(ax, shp, colors):
@@ -421,7 +336,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
-        #us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
+        us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
         
         #simplified
@@ -450,7 +365,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             maxx += padding
             
         #optional extra padding (like zooming out)
-        padding_factor = 0.3 #0.2-0.4 is alright
+        padding_factor = 0.3 #0.3 dont change from this
         pad_x = (maxx - minx) *padding_factor
         pad_y = (maxy - miny) * padding_factor
         
@@ -779,7 +694,6 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
         plt.savefig(output_path, bbox_inches='tight', dpi= 200)
-        plt.close()
         
         area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
@@ -797,9 +711,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         #print(statement)
         return output_path, statement
     except Exception as e:
-        print(Fore.RED + f"Error plotting alert geometry: {e}")
+        print(Fore.RED + f"Error plotting alert geometry: {e}" + Fore.RESET)
         return None, None
+    finally:
+        plt.close(fig)
+        gc.collect()
 
 
 if __name__ == '__main__':  
-    plot_alert_polygon(suspect_sps, 'graphics/test/tztest1', True)
+    plot_alert_polygon(test_watch, 'graphics/test/watch4', False)
