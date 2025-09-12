@@ -42,7 +42,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -134,7 +134,7 @@ print(Back.LIGHTWHITE_EX + 'Roads loaded. Filtering roads.' + Back.RESET)
 interstates = highres_roads[highres_roads['RTTYP'] == 'I']
 us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 
-print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
+print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
 with open('test_alerts/nonconvectivesps_1.json', 'r') as file:
@@ -495,7 +495,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         snowSquallDetection = alert['properties']['parameters'].get('snowSquallDetection', ['n/a'])[0] #"RADAR INDICATED" or "OBSERVED"
         snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
         waterspoutDetection = alert['properties']['parameters'].get('waterspoutDetection', ['n/a'])[0] #"OBSERVED" or "POSSIBLE"
-        
+        fireWeatherThreat = 'n/a'
+        denseFogThreat = 'n/a'
+        iceThreat = 'n/a'
         #handling SMWs because they don't have maxwind/maxhail in their parameters
         if alert_type == 'Special Marine Warning':
             description_text = alert['properties'].get('description','').lower()
@@ -517,6 +519,24 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         if alert_type == 'Special Weather Statement' and geom_type == 'zone':
             print('regexing SPS for more infos')
             description_text = alert['properties'].get('description', '').lower()
+            headline_text = alert['properties']['parameters'].get('NWSheadline', [''])[0].lower()
+            search_text = description_text + ' ' + headline_text
+
+            # Define regex patterns, need to flesh these out some more
+            fire_regex = r'\bfire\b|\bwildfire\b|red\s*flag'
+            fog_regex = r'dense\s*fog|visibility\s*(?:one|a)\s*quarter\s*mile|zero\s*visibility'
+            ice_regex = r'\bice\b|\bicy\b'
+            blackice_regex =  r'black\s+ice'
+
+            # Search for matches, ignoring case
+            if re.search(fire_regex, search_text, re.IGNORECASE):
+                fireWeatherThreat = "Elevated"
+            if re.search(fog_regex, search_text, re.IGNORECASE):
+                denseFogThreat = "Yes"
+            if re.search(ice_regex, search_text, re.IGNORECASE):
+                iceThreat = "Possible Across the Area"
+            if re.search(blackice_regex, search_text, re.IGNORECASE):
+                iceThreat = 'Black Ice Possible'
             
              
         hazard_details = [
@@ -529,7 +549,10 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             (torDetection, 'Tornado', ""),
             (waterspoutDetection, 'Waterspout', ""),
             (snowSquallDetection, 'Snow Squall', ""),
-            (floodDetection, 'Flash Flood', "")
+            (floodDetection, 'Flash Flood', ""),
+            (fireWeatherThreat, 'Risk of Fire Weather', ""),
+            (denseFogThreat, 'Dense Fog', ""),
+            (iceThreat, 'Icy Conditions', "")
         ]
 
         details_text_lines = []
