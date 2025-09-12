@@ -85,7 +85,7 @@ everything_bbox = { #includes AK, PR, HI
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
 OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
-warning_types = SEVERE + WATCHES
+warning_types = 'Special Weather Statement'
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -304,7 +304,7 @@ def main():
             if references:
                 try:
                     ref_url = references[0]['@id']
-                    print(Fore.LIGHTMAGENTA_EX + f"Alert ({alert_id}) has reference: {ref_url}" + Fore.RESET)
+                    print(Fore.LIGHTMAGENTA_EX + f"Alert ({clickable_alert_id}) has reference: {ref_url}" + Fore.RESET)
                     ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
                     ref_response.raise_for_status()
                     ref_data = ref_response.json()

@@ -18,6 +18,7 @@ import re
 import requests
 from timezonefinderL import TimezoneFinder
 import gc
+import json
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -41,7 +42,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -112,7 +113,7 @@ ALERT_COLORS = {
 start_time = time.time()
 zone_geometry_cache = {}
 
-print(Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
+print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 df_large = pd.read_csv('filtered_cities_all.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
@@ -136,84 +137,8 @@ us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-test_watch = {
-    "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
-    "type": "Feature",
-    "geometry": None,
-    "properties": {
-        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
-        "@type": "wx:Alert",
-        "id": "urn:oid:2.49.0.1.840.0.0538bc19dbe61f5b647dc033f1ac581f97d7ec57.001.1",
-        "areaDesc": "Penobscot, ME; Piscataquis, ME",
-        "geocode": {
-            "SAME": [
-                "023019",
-                "023021"
-            ],
-            "UGC": [
-                "MEC019",
-                "MEC021"
-            ]
-        },
-        "affectedZones": [
-            "https://api.weather.gov/zones/county/MEC019",
-            "https://api.weather.gov/zones/county/MEC021"
-        ],
-        "references": [],
-        "sent": "2025-09-06T13:14:00-04:00",
-        "effective": "2025-09-06T13:14:00-04:00",
-        "onset": "2025-09-06T13:14:00-04:00",
-        "expires": "2025-09-06T20:00:00-04:00",
-        "ends": "2025-09-06T20:00:00-04:00",
-        "status": "Actual",
-        "messageType": "Alert",
-        "category": "Met",
-        "severity": "Severe",
-        "certainty": "Possible",
-        "urgency": "Future",
-        "event": "Severe Thunderstorm Watch",
-        "sender": "w-nws.webmaster@noaa.gov",
-        "senderName": "NWS Caribou ME",
-        "headline": "Severe Thunderstorm Watch issued September 6 at 1:14PM EDT until September 6 at 8:00PM EDT by NWS Caribou ME",
-        "description": "THE NATIONAL WEATHER SERVICE HAS ISSUED SEVERE THUNDERSTORM WATCH\n607 IN EFFECT UNTIL 8 PM EDT THIS EVENING FOR THE FOLLOWING AREAS\n\nIN MAINE THIS WATCH INCLUDES 2 COUNTIES\n\nIN EAST CENTRAL MAINE\n\nPENOBSCOT\n\nIN NORTH CENTRAL MAINE\n\nPISCATAQUIS\n\nTHIS INCLUDES THE CITIES OF BANGOR, BREWER, DOVER-FOXCROFT,\nGREENVILLE, GUILFORD, MILO, OLD TOWN, AND ORONO.",
-        "instruction": 'none',
-        "response": "Monitor",
-        "parameters": {
-            "AWIPSidentifier": [
-                "WCNCAR"
-            ],
-            "WMOidentifier": [
-                "WWUS61 KCAR 061714"
-            ],
-            "BLOCKCHANNEL": [
-                "EAS",
-                "NWEM",
-                "CMAS"
-            ],
-            "EAS-ORG": [
-                "WXR"
-            ],
-            "VTEC": [
-                "/O.NEW.KCAR.SV.A.0607.250906T1714Z-250907T0000Z/"
-            ],
-            "eventEndingTime": [
-                "2025-09-06T20:00:00-04:00"
-            ]
-        },
-        "scope": "Public",
-        "code": "IPAWSv1.0",
-        "language": "en-US",
-        "web": "http://www.weather.gov",
-        "eventCode": {
-            "SAME": [
-                "SVA"
-            ],
-            "NationalWeatherService": [
-                "SVA"
-            ]
-        }
-    }
-}
+with open('test_alerts/nonconvectivesps_1.json', 'r') as file:
+    test_alert = json.load(file)
 
 def get_alert_geometry(alert):
     """
@@ -225,21 +150,21 @@ def get_alert_geometry(alert):
     geometry_data = alert.get("geometry")
     if geometry_data:
         print("Processing polygon-based alert.")
-        return shape(geometry_data)
+        return shape(geometry_data), 'polygon'
 
     # If no direct geometry, process as a zone-based alert (e.g., a Watch)
     print("Processing zone-based alert (geometry is null).")
     affected_zones = alert['properties'].get('affectedZones', [])
     if not affected_zones:
         print(Fore.YELLOW + "Alert has no geometry and no affected zones." + Fore.RESET)
-        return None
+        return None, None
     
     alert_type = alert['properties'].get("event")
     issuing_state = alert['properties'].get("senderName")[-2:]
     print(issuing_state)
     if issuing_state == 'AK' and alert_type == 'Special Weather Statement':
         print('not plotting due to known errors with Alaska zone-based SPS.')
-        return None
+        return None, None
     geometries = []
     print(f"Fetching geometries for {len(affected_zones)} zones...")
     for zone_url in affected_zones:
@@ -268,7 +193,7 @@ def get_alert_geometry(alert):
     combined_geometry = unary_union(geometries)
     clean_geometry = buffer(combined_geometry, 0.001) #should remove tiny/weird overlaps.
     print("Successfully combined zone geometries.")
-    return clean_geometry
+    return clean_geometry, 'zone'
 
 
 def draw_alert_shape(ax, shp, colors):
@@ -289,7 +214,7 @@ def draw_alert_shape(ax, shp, colors):
 
 def plot_alert_polygon(alert, output_path, mrms_plot):
     plot_start_time = time.time()
-    geom = get_alert_geometry(alert)
+    geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
     
     if not geom:
         print("No geometry found for alert.")
@@ -391,7 +316,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         office_awips = office_awips[3:]
         if office_awips == 'SJU':
             region = 'PR'
-        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU' or office_awips == 'NSB':
+        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU' or office_awips == 'NSB' or office_awips == 'AER':
             region = 'AK'
         elif office_awips == 'HFO':
             region = 'HI'
@@ -415,8 +340,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                 cbar.ax.tick_params(labelsize=8)
                 '''
                 # The list is [left, bottom, width, height] as fractions of the main plot area.
-                cax = ax.inset_axes([0.875, 0.17, 0.03, 0.75])
-                cax.set_facecolor('#0000004d')
+                cax = ax.inset_axes([0.885, 0.17, 0.027, 0.75])
+                cax.set_facecolor("#00000034")
                 
                 cbar = fig.colorbar(im, cax=cax, orientation = 'vertical')
                 cbar.set_label(cbar_label, color="#000000", fontsize=10, weight='bold')
@@ -429,9 +354,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                     label.set_path_effects([PathEffects.withStroke(linewidth=1, foreground = 'black')])
                     label.set_fontweight('heavy')
                 
-                ax.text(0.99, 0.985, f"Radar data valid {radar_valid_time}", #radar time
-                transform=ax.transAxes, ha='right', va='top', 
-                fontsize=7, backgroundcolor="#eeeeeecc", zorder = 7)
+                ax.text(0.01, 0.93, f"Radar data valid {radar_valid_time}", #radar time
+                    transform=ax.transAxes, ha='left', va='top', 
+                    fontsize=7, backgroundcolor="#eeeeeecc", zorder = 7)
                 
             else:
                 print("skipping plotting radar, no data returned from get_mrms_data")
@@ -528,6 +453,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                 #print(f'plotted {city_name}, population: {city_pop1}')
         fig.text(0.90, 0.96, f'v.{VERSION_NUMBER}', ha='right', va='top', 
                  fontsize = 6, color="#000000", backgroundcolor="#96969636")
+        fig.text(0.90, 0.92, f'Generated: {datetime.now(pytz.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC ', ha='right', va='top', #time.strftime("%Y-%m-%d %H:%M:%S")
+                 fontsize=6, color='#000000', backgroundcolor='#96969636')
         ax.text(0.01, 0.985, f"Issued {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
@@ -585,6 +512,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                         maxHail = float(hail_match.group(1))
                     except ValueError:
                         print('could not parse hail size from description')
+        
+        #handle non-convective SPS                
+        if alert_type == 'Special Weather Statement' and geom_type == 'zone':
+            print('regexing SPS for more infos')
+            description_text = alert['properties'].get('description', '').lower()
+            
              
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
@@ -699,7 +632,6 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
         
-        
         if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
@@ -719,4 +651,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__':  
-    plot_alert_polygon(test_watch, 'graphics/test/watch4', False)
+    plot_alert_polygon(test_alert, 'graphics/test/cbartest3', True)

@@ -1,8 +1,12 @@
 /__pycache__
 /.env
+/venv
+/test_alerts
 /plot_l3.py
 /plot_mrms.py
 /graphics
+*.idx
+*.grib2
 /mrms_stuff
 /BIG_DOMAIN.py
 /latest.grib2

@@ -13,5 +13,5 @@ Shapely==2.1.1
 siphon==0.10.0
 xarray==2025.8.0
 cfgrib==0.9.15.0
-pygame==2.6.0
-timezonefinderL==8.00
+#pygame==2.6.0
+timezonefinderL
