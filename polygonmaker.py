@@ -42,7 +42,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.2" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -114,7 +114,7 @@ start_time = time.time()
 zone_geometry_cache = {}
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
-df_large = pd.read_csv('filtered_cities_all.csv')
+df_large = pd.read_csv('gis/filtered_cities_all.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
 logo_path= 'testlogo1.png'
@@ -651,4 +651,4 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__':  
-    plot_alert_polygon(test_alert, 'graphics/test/cbartest3', True)
+    plot_alert_polygon(test_alert, 'graphics/test/00sps1', False)
