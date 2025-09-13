@@ -42,7 +42,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -137,8 +137,6 @@ us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-with open('test_alerts/nonconvectivesps_1.json', 'r') as file:
-    test_alert = json.load(file)
 
 def get_alert_geometry(alert):
     """
@@ -150,6 +148,7 @@ def get_alert_geometry(alert):
     geometry_data = alert.get("geometry")
     if geometry_data:
         print("Processing polygon-based alert.")
+        print(shape(geometry_data))
         return shape(geometry_data), 'polygon'
 
     # If no direct geometry, process as a zone-based alert (e.g., a Watch)
@@ -162,9 +161,11 @@ def get_alert_geometry(alert):
     alert_type = alert['properties'].get("event")
     issuing_state = alert['properties'].get("senderName")[-2:]
     print(issuing_state)
+    '''
     if issuing_state == 'AK' and alert_type == 'Special Weather Statement':
         print('not plotting due to known errors with Alaska zone-based SPS.')
         return None, None
+    '''
     geometries = []
     print(f"Fetching geometries for {len(affected_zones)} zones...")
     for zone_url in affected_zones:
@@ -201,6 +202,7 @@ def draw_alert_shape(ax, shp, colors):
     polygons_to_draw = []
     if shp.geom_type == 'Polygon':
         polygons_to_draw = [shp]
+        print('drawing polygon (205)')
     elif shp.geom_type == 'MultiPolygon':
         polygons_to_draw = shp.geoms
 
@@ -228,31 +230,37 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         issuing_office = alert['properties'].get("senderName")
         
         #new time stuff
-        tf = TimezoneFinder()
-        centerlon, centerlat = geom.centroid.x, geom.centroid.y
-        timezone_str = tf.timezone_at(lng=centerlon, lat= centerlat)
-        print(timezone_str)
-        alert_tz = pytz.timezone(timezone_str)
+        try:
+            tf = TimezoneFinder()
+            centerlon, centerlat = geom.centroid.x, geom.centroid.y
+            print(centerlon, centerlat)
+            timezone_str = tf.timezone_at(lng=centerlon, lat= centerlat)
+            print(f'TZ: {timezone_str}')
+            alert_tz = pytz.timezone(timezone_str)
+            
+            dt_sent = datetime.fromisoformat(issued_time).astimezone(alert_tz)
+            dt_expires = datetime.fromisoformat(expiry_time).astimezone(alert_tz)
         
-        dt_sent = datetime.fromisoformat(issued_time).astimezone(alert_tz)
-        dt_expires = datetime.fromisoformat(expiry_time).astimezone(alert_tz)
+            formatted_issued_time = dt_sent.strftime("%I:%M %p %Z")
+            formatted_expiry_time = dt_expires.strftime("%B %d, %I:%M %p %Z")
+            print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+        except Exception as e:
+            print(Back.YELLOW + f'error getting timezone: [{e}] defaulting to UTC' + Back.RESET)
         
-        formatted_issued_time = dt_sent.strftime("%I:%M %p %Z")
-        formatted_expiry_time = dt_expires.strftime("%B %d, %I:%M %p %Z")
-        print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+            #time formatting (old)
+            dt = datetime.fromisoformat(expiry_time)
+            eastern = pytz.timezone("GMT")
+            dt_eastern = dt.astimezone(eastern)
+            formatted_expiry_time = dt_eastern.strftime("%B %d, %I:%M %p %Z")
+            dt1 = datetime.fromisoformat(issued_time)
+            dt1_eastern = dt1.astimezone(eastern)
+            formatted_issued_time = dt1_eastern.strftime("%I:%M %p %Z")
+            print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
         
-        '''
-        #time formatting (old)
-        dt = datetime.fromisoformat(expiry_time)
-        eastern = pytz.timezone("US/Eastern")
-        dt_eastern = dt.astimezone(eastern)
-        formatted_expiry_time = dt_eastern.strftime("%B %d, %I:%M %p %Z")
-        dt1 = datetime.fromisoformat(issued_time)
-        dt1_eastern = dt1.astimezone(eastern)
-        formatted_issued_time = dt1_eastern.strftime("%I:%M %p %Z")
-        print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
-        '''
         #plot setup
+        minx, _, maxx, _ = geom.bounds #ignore the lat, as its not relevant here
+        print(minx, maxx)
+
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
         ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
@@ -269,46 +277,65 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         fig.set_facecolor(colors['facecolor'])
                    
         # Fit view to geometry
+         # Fit view to geometry's initial bounds
         minx, miny, maxx, maxy = geom.bounds
+        
+        # Add initial padding
+        padding_factor = 0.3
         width = maxx - minx
         height = maxy - miny
-        target_aspect = 3/2
-        
-        current_aspect = width / height
-        
-        if current_aspect > target_aspect:
-            #too wide, pad height
-            new_height = width / target_aspect
-            padding = (new_height - height) / 2
-            miny -= padding
-            maxy += padding
-        else:
-            #too tall pad height
-            new_width = height * target_aspect
-            padding = (new_width - width) /2
-            minx -= padding
-            maxx += padding
-            
-        #optional extra padding (like zooming out)
-        padding_factor = 0.3 #0.3 dont change from this
-        pad_x = (maxx - minx) *padding_factor
-        pad_y = (maxy - miny) * padding_factor
+        pad_x = width * padding_factor
+        pad_y = height * padding_factor
         
         minx -= pad_x
         maxx += pad_x
         miny -= pad_y
         maxy += pad_y
-        #scale = 0.2 #more is more zoomed out, less is more zoomed in #0.2-0.3 is probably ideal
-        map_region = [minx, maxx, miny, maxy]
-        #print(map_region)
-        map_region2 = { #for the mrms stuff
-            "lon_min": minx - 0.01,
-            "lon_max": maxx + 0.01,
-            "lat_min": miny - 0.01,
-            "lat_max": maxy + 0.01
+
+        # Clamp padded extent to valid lat/lon ranges
+        clamped_minx = max(minx, -180.0)
+        clamped_maxx = min(maxx, 180.0)
+        clamped_miny = max(miny, -90.0)
+        clamped_maxy = min(maxy, 90.0)
+
+        # Recalculate dimensions after clamping
+        width = clamped_maxx - clamped_minx
+        height = clamped_maxy - clamped_miny
+        
+        # Enforce the target aspect ratio (3:2) on the clamped box
+        target_aspect = 3.0 / 2.0
+        current_aspect = width / height
+
+        if current_aspect > target_aspect:
+            # Box is too wide, it needs to be taller
+            new_height = width / target_aspect
+            delta_y = (new_height - height) / 2
+            clamped_miny -= delta_y
+            clamped_maxy += delta_y
+        else:
+            # Box is too tall, it needs to be wider
+            new_width = height * target_aspect
+            delta_x = (new_width - width) / 2
+            clamped_minx -= delta_x
+            clamped_maxx += delta_x
+
+        # Final check to ensure the aspect ratio adjustment didn't push us back out of bounds
+        final_minx = max(clamped_minx, -180.0)
+        final_maxx = min(clamped_maxx, 180.0)
+        final_miny = max(clamped_miny, -90.0)
+        final_maxy = min(clamped_maxy, 90.0)
+        
+        map_region = [final_minx, final_maxx, final_miny, final_maxy]
+        print(map_region)
+        map_region2 = { # For the MRMS stuff
+            "lon_min": final_minx,
+            "lon_max": final_maxx,
+            "lat_min": final_miny,
+            "lat_max": final_maxy
         }
-        #print(map_region2)
-        ax.set_extent(map_region)
+        
+        ax.set_extent(map_region, crs=ccrs.PlateCarree())
+
         clip_box = ax.get_window_extent() #for the text on screen
         #NEW: plotting MRMS data here
         #check for region
@@ -669,9 +696,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         print(Fore.RED + f"Error plotting alert geometry: {e}" + Fore.RESET)
         return None, None
     finally:
-        plt.close(fig)
+        #plt.close(fig)
         gc.collect()
 
 
-if __name__ == '__main__':  
-    plot_alert_polygon(test_alert, 'graphics/test/00sps1', False)
+if __name__ == '__main__': 
+    with open('test_alerts/aleutians.json', 'r') as file:
+        print('open')
+        test_alert = json.load(file)
+    plot_alert_polygon(test_alert, 'graphics/test/idltest1', True)
