@@ -3,7 +3,7 @@
 
 ---
 ## What it does:
-1. Scrapes the publicly-facing [NWS alerts api](api.weather.gov/alerts/active) for chosen alerts in a chosen bounding box (see [supported alerts](#supported-alerts) and [areas](#supported-areas) for more info)
+1. Scrapes the publicly-facing [NWS alerts api](https://api.weather.gov/alerts/active) for chosen alerts in a chosen bounding box (see [supported alerts](#supported-alerts) and [areas](#supported-areas) for more info)
 2. Generates a polygon from the alert geometry
 3. Uses open-source GIS tools to add in US highways, interstates, county/state borders, and city names onto the selected map area. 
 4. Polls the NCEP MRMS server (unless a recent cached scan is available) and downloads the latest reflectivity (default) or 1hr-QPE (FFW, FFA) data, and overlays that onto the map, for better context. 
@@ -39,8 +39,12 @@
  tempfile, discord_webhook, dotenv
 
 ```
+## Contributions: 
+Want to contribute? Great! Each main project `.py` file has a cluttered list of TODOs at the top, with general ideas for improvements and fixes. Some of these might be completed but not checked off, or not applicable any more. For a more structured list of needs, check out the [Issues](https://github.com/nickkessel/warnings_on_fb/issues) page on the repository. I'd say that the biggest needs right now are more testing of different types of alerts in unusual areas (and just general resiliency), improving the caption/details text, and adding more integrations (Instagram/Meta Business Suite being the biggest).
+## License:
+MIT License + Commons Clause *[more](LICENSE)*.
 ## Contact:
-You can contact me (nick) at [kesse1ni@cmich.edu](mailto:kesse1ni@cmich.edu). 
+You can email me (nick) at [kesse1ni@cmich.edu](mailto:kesse1ni@cmich.edu), or DM me on [Twitter](https://www.x.com/wX_nvck).
 ## Examples:
 ![img](https://cdn.discordapp.com/attachments/1410438594799206583/1416515387670925397/Alert.png?ex=68c72042&is=68c5cec2&hm=b20622d3cb060b04647bfecf06e74ac3fcfcc54b59c71d09b062da9eb64dbca0& )
 ![Image](example_graphics/alert_map_mrms11.png) 

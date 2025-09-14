@@ -29,9 +29,9 @@ import json
 #DONE: space out city names slightly more
 #DONE: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
     #there aren't like big boxes with super dense city names with them
-#TODO: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
+#DONE: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
 #DONE: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
-
+#TODO: use ak_cities dataset for alaska alerts, and also filter it so it's just AK. 
 ''' 
 ZORDER STACK
 0 - polygon fill
@@ -42,7 +42,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -114,7 +114,7 @@ start_time = time.time()
 zone_geometry_cache = {}
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
-df_large = pd.read_csv('gis/filtered_cities_all.csv')
+df_large = pd.read_csv('gis/cities_250.csv') #cities w/pop >250
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
 logo_path= 'testlogo1.png'
@@ -202,7 +202,6 @@ def draw_alert_shape(ax, shp, colors):
     polygons_to_draw = []
     if shp.geom_type == 'Polygon':
         polygons_to_draw = [shp]
-        print('drawing polygon (205)')
     elif shp.geom_type == 'MultiPolygon':
         polygons_to_draw = shp.geoms
 
@@ -551,7 +550,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
             # Define regex patterns, need to flesh these out some more
             fire_regex = r'\bfire\b|\bwildfire\b|red\s*flag'
-            fog_regex = r'dense\s*fog|visibility\s*(?:one|a)\s*quarter\s*mile|zero\s*visibility'
+            fog_regex = r'dense\s*fog|visibility\s*(?:one|a)\s*quarter\s*mile|zero\s*visibility|\bareas\s+of\s+fog\b'
             ice_regex = r'\bice\b|\bicy\b'
             blackice_regex =  r'black\s+ice'
 
@@ -559,7 +558,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             if re.search(fire_regex, search_text, re.IGNORECASE):
                 fireWeatherThreat = "Elevated"
             if re.search(fog_regex, search_text, re.IGNORECASE):
-                denseFogThreat = "Yes"
+                denseFogThreat = "Likely"
             if re.search(ice_regex, search_text, re.IGNORECASE):
                 iceThreat = "Possible Across the Area"
             if re.search(blackice_regex, search_text, re.IGNORECASE):
@@ -578,7 +577,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             (snowSquallDetection, 'Snow Squall', ""),
             (floodDetection, 'Flash Flood', ""),
             (fireWeatherThreat, 'Risk of Fire Weather', ""),
-            (denseFogThreat, 'Dense Fog', ""),
+            (denseFogThreat, 'Fog Development', ""),
             (iceThreat, 'Icy Conditions', "")
         ]
 
