@@ -15,6 +15,7 @@ print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import threading #slideshow
 import queue #slideshow
+import config
 load_dotenv()
 load_done_time = time.time() - load_time
 print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
@@ -54,38 +55,8 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-WEBHOOKS = ['https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU']
 
-#toggles
-FACEBOOK = False
-DISCORD = False
-USE_TEST_BBOX = True
-ENABLE_SLIDESHOW = False # <-- Slideshow Toggle
-
-# Define your area by zone or county
-target_bbox = { #this is the area that is being scanned for alerts as well
-        "lon_min": -85.124817,
-        "lon_max": -83.364258,
-        "lat_min": 38.736946,
-        "lat_max": 39.664914
-    }
-conus_bbox = {
-        "lon_min": -126,
-        "lon_max": -66,
-        "lat_min": 24,
-        "lat_max": 50
-}
-everything_bbox = { #includes AK, PR, HI
-        "lon_min": -173,
-        "lon_max": -63,
-        "lat_min": 15,
-        "lat_max": 71
-}
-
-SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
-OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning']
-WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
-warning_types = 'Special Weather Statement'
+warning_types = config.WARNING_TYPES_TO_MONITOR
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -129,12 +100,7 @@ def get_nws_alerts():
                 )
                 return is_inside #true/false
 
-            if USE_TEST_BBOX:
-                actual_bbox = everything_bbox
-            else:
-                actual_bbox = target_bbox
-
-            if event_type in warning_types : #and any_point_in_bbox(geometry, actual_bbox)
+            if event_type in warning_types: # and any_point_in_bbox(geometry, config.ACTIVE_BBOX):
                 print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
                 filtered_alerts.append(alert)
             #else:
@@ -147,7 +113,7 @@ def get_nws_alerts():
         return []
 
 def log_to_discord(message, img_path):
-    webhook = DiscordWebhook(url=WEBHOOKS, content=message)
+    webhook = DiscordWebhook(url=config.WEBHOOKS[0], content=message)
     with open(img_path, 'rb') as f:
         webhook.add_file(file=f.read(), filename='Alert.png')
     try:
@@ -252,7 +218,7 @@ check_time = 60 #seconds of downtime between scans
 def main():
     # --- Create a queue for communication between main thread and slideshow thread ---
     slideshow_queue = None
-    if ENABLE_SLIDESHOW:
+    if config.SEND_TO_SLIDESHOW:
         slideshow_queue = queue.Queue()
         from slideshow import run_slideshow
         # Start the slideshow in a daemon thread so it closes when the main script exits
@@ -327,13 +293,13 @@ def main():
                     path, statement = plot_alert_polygon(alert, alert_path, True)
 
                     # --- If slideshow is enabled, send it the new alert info ---
-                    if ENABLE_SLIDESHOW and path and expiry_time_iso:
+                    if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:
                         slideshow_queue.put((path, expiry_time_iso))
 
                     #print(statement)
-                    if FACEBOOK:
+                    if config.POST_TO_FACEBOOK:
                         post_to_facebook(statement, alert_path)
-                    if DISCORD:
+                    if config.POST_TO_DISCORD:
                         log_to_discord(statement, alert_path)
                     posted_alerts.add(alert_id)
                 except Exception as e:

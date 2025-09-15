@@ -19,19 +19,22 @@ import requests
 from timezonefinderL import TimezoneFinder
 import gc
 import json
+import config
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
     #everything, but the imagery still plots towards the bottom. 
 #TODO: wider polygon borders for more intense (destructive/tor-e) warnings
 #DONE: consider shrinking hazards box when theres more than x (3?4?) things in there
-#TODO: adjust city name boldness for readability (done-ish)
+#DONE: adjust city name boldness for readability (done-ish)
 #DONE: space out city names slightly more
 #DONE: have a greater min_deg_distance when the lat/lon is bigger than a certain area, so that for big warnings
     #there aren't like big boxes with super dense city names with them
 #DONE: figure out/fix highway/road plotting so that they are better, basically, but also continuous (e.g no random gaps in the highway)
 #DONE: use regex to pull hazard params from SMW alert text so they show in hazardbox (done? need to test w/ hail)
-#TODO: use ak_cities dataset for alaska alerts, and also filter it so it's just AK. 
+#DONE: use ak_cities dataset for alaska alerts, and also filter it so it's just AK. 
+#TODO: make sure that the little dots for city locations are actually in a good spot
+#TODO: maybe: add some sort of filter or something to show cities w/ less population when its a super sparse area (like ND)
 ''' 
 ZORDER STACK
 0 - polygon fill
@@ -42,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.8" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -114,7 +117,7 @@ start_time = time.time()
 zone_geometry_cache = {}
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
-df_large = pd.read_csv('gis/cities_250.csv') #cities w/pop >250
+ #cities w/pop >250
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
 logo_path= 'testlogo1.png'
@@ -148,7 +151,7 @@ def get_alert_geometry(alert):
     geometry_data = alert.get("geometry")
     if geometry_data:
         print("Processing polygon-based alert.")
-        print(shape(geometry_data))
+        #print(shape(geometry_data))
         return shape(geometry_data), 'polygon'
 
     # If no direct geometry, process as a zone-based alert (e.g., a Watch)
@@ -159,8 +162,6 @@ def get_alert_geometry(alert):
         return None, None
     
     alert_type = alert['properties'].get("event")
-    issuing_state = alert['properties'].get("senderName")[-2:]
-    print(issuing_state)
     '''
     if issuing_state == 'AK' and alert_type == 'Special Weather Statement':
         print('not plotting due to known errors with Alaska zone-based SPS.')
@@ -216,6 +217,11 @@ def draw_alert_shape(ax, shp, colors):
 def plot_alert_polygon(alert, output_path, mrms_plot):
     plot_start_time = time.time()
     geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
+    issuing_state = alert['properties'].get("senderName")[-2:]
+    if issuing_state == 'AK':
+        cities_ds = pd.read_csv('gis/ak_cities.csv') #different pop cutoff to show more places on map 
+    else: 
+        cities_ds = pd.read_csv('gis/cities_250.csv')
     
     if not geom:
         print("No geometry found for alert.")
@@ -232,9 +238,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         try:
             tf = TimezoneFinder()
             centerlon, centerlat = geom.centroid.x, geom.centroid.y
-            print(centerlon, centerlat)
+            #print(centerlon, centerlat)
             timezone_str = tf.timezone_at(lng=centerlon, lat= centerlat)
-            print(f'TZ: {timezone_str}')
+            #print(f'TZ: {timezone_str}')
             alert_tz = pytz.timezone(timezone_str)
             
             dt_sent = datetime.fromisoformat(issued_time).astimezone(alert_tz)
@@ -258,7 +264,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         
         #plot setup
         minx, _, maxx, _ = geom.bounds #ignore the lat, as its not relevant here
-        print(minx, maxx)
+        #print(minx, maxx)
 
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -325,7 +331,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         final_maxy = min(clamped_maxy, 90.0)
         
         map_region = [final_minx, final_maxx, final_miny, final_maxy]
-        print(map_region)
+        #print(map_region)
         map_region2 = { # For the MRMS stuff
             "lon_min": final_minx,
             "lon_max": final_maxx,
@@ -390,9 +396,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             print('not plotting MRMS')
         
         #filter for only cities in map view
-        visible_cities_df = df_large[
-            (df_large['lng'] >= minx) & (df_large['lng'] <= maxx) &
-            (df_large['lat'] >= miny) & (df_large['lat'] <= maxy)
+        visible_cities_df = cities_ds[
+            (cities_ds['lng'] >= minx) & (cities_ds['lng'] <= maxx) &
+            (cities_ds['lat'] >= miny) & (cities_ds['lat'] <= maxy)
         ].copy()
         
         #print(f'total cities available: {len(df_large)}')
@@ -415,7 +421,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         elif alert_height <= 1:
             min_distance_deg = 0.04
         '''
-        min_distance_deg = alert_height/8
+        min_distance_deg = alert_height/9
         
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
@@ -685,7 +691,10 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         
-        statement = (f"A {alert_type} has been issued, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} \n#cincywx #cincinnati #weather #ohwx #ohiowx #cincy #cincinnatiwx")
+        statement = f'''A {alert_type} has been issued, including {area_desc}! This alert 
+                        is in effect until {formatted_expiry_time}!!\n{desc} '''
+        if config.USE_TAGS:
+            statement += config.DEFAULT_TAGS
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)
@@ -700,7 +709,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/aleutians.json', 'r') as file:
+    with open('test_alerts/interior_ak.json', 'r') as file:
         print('open')
         test_alert = json.load(file)
-    plot_alert_polygon(test_alert, 'graphics/test/idltest1', True)
+    plot_alert_polygon(test_alert, 'graphics/test/ak_cities2', True)
