@@ -214,7 +214,7 @@ def draw_alert_shape(ax, shp, colors):
         ax.plot(x, y, color=colors['edgecolor'], linewidth=2, transform=ccrs.PlateCarree(), zorder=4)
 
 
-def plot_alert_polygon(alert, output_path, mrms_plot):
+def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
     plot_start_time = time.time()
     geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
     issuing_state = alert['properties'].get("senderName")[-2:]
@@ -421,8 +421,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         elif alert_height <= 1:
             min_distance_deg = 0.04
         '''
-        min_distance_deg = alert_height/9
-        
+        min_distance_deg = alert_height/9 #8 or 9 or 10 seems to work well. lower if the map seems too cluttered
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
             city_y = city['lat']
@@ -483,6 +482,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                 accepted_bboxes.append(bbox)
                 final_texts.append(text_artist)
                 #print(f'plotted {city_name}, population: {city_pop1}')
+                
         fig.text(0.90, 0.96, f'v.{VERSION_NUMBER}', ha='right', va='top', 
                  fontsize = 6, color="#000000", backgroundcolor="#96969636")
         fig.text(0.90, 0.92, f'Generated: {datetime.now(pytz.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC ', ha='right', va='top', #time.strftime("%Y-%m-%d %H:%M:%S")
@@ -522,7 +522,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         torDetection = alert['properties']['parameters'].get('tornadoDetection', ['n/a'])[0] #string, possible for svr; radar-indicated, radar-confirmed, need to see others for tor warning
         floodSeverity = alert['properties']['parameters'].get('flashFloodDamageThreat', ['n/a'])[0] #string, default level (unsure what this returns), considerable, catastophic
         tStormSeverity = alert['properties']['parameters'].get('thunderstormDamageThreat', ['n/a'])[0] 
-        torSeverity = alert['properties']['parameters'].get('tornadoDamageThreat', ['n/a'])[0] #considerable for pds, not sure for tor-e. 
+        torSeverity = alert['properties']['parameters'].get('tornadoDamageThreat', ['n/a'])[0] #considerable for pds, catastrophic for tor e
         floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
         snowSquallDetection = alert['properties']['parameters'].get('snowSquallDetection', ['n/a'])[0] #"RADAR INDICATED" or "OBSERVED"
         snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
@@ -530,6 +530,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         fireWeatherThreat = 'n/a'
         denseFogThreat = 'n/a'
         iceThreat = 'n/a'
+        additionalHazard = 'n/a' 
         #handling SMWs because they don't have maxwind/maxhail in their parameters
         if alert_type == 'Special Marine Warning':
             description_text = alert['properties'].get('description','').lower()
@@ -559,6 +560,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             fog_regex = r'dense\s*fog|visibility\s*(?:one|a)\s*quarter\s*mile|zero\s*visibility|\bareas\s+of\s+fog\b'
             ice_regex = r'\bice\b|\bicy\b'
             blackice_regex =  r'black\s+ice'
+            funnel_regex = r'funnel\s+cloud' #search sps for funnel clouds possible
 
             # Search for matches, ignoring case
             if re.search(fire_regex, search_text, re.IGNORECASE):
@@ -569,7 +571,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
                 iceThreat = "Possible Across the Area"
             if re.search(blackice_regex, search_text, re.IGNORECASE):
                 iceThreat = 'Black Ice Possible'
-            
+            if re.search(funnel_regex, search_text, re.IGNORECASE):
+                additionalHazard = 'Funnel Clouds Possible'
              
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
@@ -584,7 +587,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
             (floodDetection, 'Flash Flood', ""),
             (fireWeatherThreat, 'Risk of Fire Weather', ""),
             (denseFogThreat, 'Fog Development', ""),
-            (iceThreat, 'Icy Conditions', "")
+            (iceThreat, 'Icy Conditions', ""),
+            (additionalHazard, 'Additional Hazards', "")
         ]
 
         details_text_lines = []
@@ -619,7 +623,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         #shrink fontsize if there are more than 3 things in the detailstext infobox (rare but i've seen it)
         if details_text_lines:
             if len(details_text_lines) < 4:
-                info_box = AnchoredText(details_text, loc=3, prop={'size': 12}, frameon=True, zorder = 7)
+                info_box = AnchoredText(details_text, loc=3, prop={'size': 11}, frameon=True, zorder = 7)
             elif len(details_text_lines) >= 4:
                 info_box = AnchoredText(details_text, loc=3, prop={'size': 10}, frameon=True, zorder = 7)
             ax.add_artist(info_box)
@@ -630,16 +634,16 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         #set container contents, if applicable
         if torSeverity == 'CATASTROPHIC':  # Tornado Emergency
             pdsBox_text = "This is a TORNADO EMERGENCY!! \n A large and extremely dangerous tornado is ongoing \n Seek shelter immediately!"
-            pdsBox_color = "#ff1717a7"
+            pdsBox_color = "#ff1717d8"
         elif floodSeverity == 'CATASTROPHIC':  # Flash Flood Emergency
             pdsBox_text = "This is a FLASH FLOOD EMERGENCY!! \n Get to higher ground NOW!"
-            pdsBox_color = "#ff1717a7"
+            pdsBox_color = "#ff1717d8"
         elif tStormSeverity == 'DESTRUCTIVE': #destructive tstorm
             pdsBox_text = "This is a DESTRUCTIVE THUNDERSTORM!! \n Seek shelter immediately!"
-            pdsBox_color = "#ff1717a7"
+            pdsBox_color = "#ff1717d8"
         elif torSeverity == 'CONSIDERABLE':  # PDS Tornado Warning
             pdsBox_text = "This is a PATICULARLY DANGEROUS SITUATION!! \n Seek shelter immediately!"
-            pdsBox_color = "#ff1717a7"
+            pdsBox_color = "#ff1717d8"
         elif torDetection == 'POSSIBLE':  # Tornado Possible tag on SVR
             pdsBox_text = "A tornado is POSSIBLE with this storm!"
             pdsBox_color = colors['facecolor']
@@ -654,7 +658,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         if pdsBox_text:
             ax.text(
                 x=0.5,                            # Horizontal position (center)
-                y=0.85,                           # Vertical position (from bottom)
+                y=0.8,                           # Vertical position (from bottom)
                 s=pdsBox_text,                   # The message text
                 transform=ax.transAxes,           # Use axes coordinates
                 ha='center',                      # Horizontal alignment
@@ -686,15 +690,18 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
         area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
+        if alert_verb == None:
+            alert_verb = 'issued'
         
         if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         
-        statement = f'''A {alert_type} has been issued, including {area_desc}! This alert 
-                        is in effect until {formatted_expiry_time}!!\n{desc} '''
+        statement = f'''{alert_type} {alert_verb}, including {area_desc}! This alert is in 
+effect until {formatted_expiry_time}!!\n{desc} '''
         if config.USE_TAGS:
             statement += config.DEFAULT_TAGS
+        print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)
@@ -709,7 +716,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot):
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/interior_ak.json', 'r') as file:
-        print('open')
-        test_alert = json.load(file)
-    plot_alert_polygon(test_alert, 'graphics/test/ak_cities2', True)
+    with open('test_alerts/ohio.json', 'r') as file: 
+        print('open') 
+        test_alert = json.load(file) 
+    plot_alert_polygon(test_alert, 'graphics/test/alertverb2', False, None)

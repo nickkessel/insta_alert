@@ -170,30 +170,67 @@ def clean_filename(name):
 
 def are_alerts_different(new_alert, ref_alert):
     """
+    Only works with polygon based alerts 
     Compares a new alert with its reference to see if it's a significant update.
     Returns True if it's new/different and should be posted.
     Returns False if it's a non-critical duplicate update.
+    Returns the "action", like upgraded or continued
     """
     new_geom = new_alert.get('geometry')
     ref_geom = ref_alert.get('geometry')
 
     # Case 1: Both are polygon-based (e.g., Warnings)
     if new_geom and ref_geom:
-        if shape(new_geom).equals(shape(ref_geom)):
-            print("Equal geometry, checking attributes...")
-            new_params = new_alert['properties']['parameters']
-            ref_params = ref_alert['properties']['parameters']
-            # Compare key attributes that would trigger a new post
-            if (new_params.get('maxWindGust') == ref_params.get('maxWindGust') and
-                    new_params.get('maxHailSize') == ref_params.get('maxHailSize')):
-                print("Attributes are the same. This is a duplicate update.")
-                return False
+        print("checking attributes...")
+        new_params = new_alert['properties']['parameters']
+        ref_params = ref_alert['properties']['parameters']
+        new_maxWindGust = new_params.get('maxWindGust', [None])[0]
+        new_maxWindGust = re.sub('[^0-9]','', new_maxWindGust) #regex to remove all letters/spaces
+        ref_maxWindGust = ref_params.get('maxWindGust', [None])[0]
+        ref_maxWindGust = re.sub('[^0-9]','', ref_maxWindGust)
+        new_maxHailSize = new_params.get('maxHailSize', [None])[0]
+        ref_maxHailSize = ref_params.get('maxHailSize', [None])[0]
+        new_tornadoDetection = new_params.get('tornadoDetection', [None])[0]
+        ref_tornadoDetection = ref_params.get('tornadoDetection', [None])[0]
+        new_torSeverity = new_params.get('tornadoDamageThreat', [None])[0]
+        ref_torSeverity = ref_params.get('tornadoDamageThreat', [None])[0]
+        
+        print(new_maxWindGust,ref_maxWindGust,new_maxHailSize,ref_maxHailSize,new_tornadoDetection,ref_tornadoDetection)
+        # Compare key attributes that would trigger a new post
+        '''
+        if (new_maxWindGust == ref_maxWindGust and new_maxHailSize == ref_maxHailSize):
+            print("Attributes are the same. This is a duplicate update.")
+            return False, ""
+        '''
+        if (int(new_maxWindGust) > int(ref_maxWindGust) or float(new_maxHailSize) > float(ref_maxHailSize)):
+            print("Wind/Hail has increased. UPGRADE")
+            return True, 'upgraded'
+        elif (new_tornadoDetection == 'POSSIBLE' and ref_tornadoDetection == None):
+            print('tor possible, upgrade')
+            return True, 'upgraded'
+        elif (new_tornadoDetection == 'OBSERVED' and ref_tornadoDetection == 'RADAR INDICATED'):
+            print('tor confirmed, upgrade')
+            return True, 'upgraded'
+        elif (new_torSeverity == 'CONSIDERABLE' and ref_torSeverity == None):
+            print('tor severity upgraded, upgrade')
+            return True, 'upgraded'
+        elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == 'CONSIDERABLE'):
+            print('tor severity upgraded, upgrade')
+            return True, 'upgraded'
+        elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == None):
+            print('tor sevrity upgraded, upgrade')
+            return True, 'upgraded'
+        elif int(new_maxWindGust) == int(ref_maxWindGust) and float(new_maxHailSize) == float(ref_maxHailSize): #not checking for tor stuff atm as its kinda confusing with the tor detection
+            print("attributes are the same, checking geometries")
+            if shape(new_geom).equals(shape(ref_geom)):
+                print('geometries are equal, not plotting.')
+                return False, ''
             else:
-                print("Attributes have changed. This is a significant update.")
-                return True
+                print("Geometries are different.")
+                return True, 'continued'
         else:
-            print("Geometries are different.")
-            return True
+            print(Back.YELLOW + "how did we get here?? (maybe downgrade?)" + Back.RESET)
+            return True, 'issued'
 
     # Case 2: Both are zone-based (e.g., Watches)
     elif not new_geom and not ref_geom:
@@ -203,15 +240,15 @@ def are_alerts_different(new_alert, ref_alert):
         
         if new_ugc == ref_ugc:
             print("Affected zones (UGC) are the same. This is a duplicate update.")
-            return False
+            return False, ''
         else:
             print("Affected zones (UGC) have changed.")
-            return True
+            return True, 'continued'
 
     # Case 3: Mixed types (one is polygon, one is zone). Treat as different.
     else:
         print("Alert type (polygon vs. zone) differs from reference.")
-        return True
+        return True, 'continued'
 
 check_time = 60 #seconds of downtime between scans
 
@@ -275,10 +312,14 @@ def main():
                     ref_response.raise_for_status()
                     ref_data = ref_response.json()
                     
+                    ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
+                    print(ref_check_passed, alert_verb)
                     # Use the helper function to determine if it's a duplicate
+                    '''
                     if not are_alerts_different(alert, ref_data):
                         ref_check_passed = False
                         print("Conclusion: Alert is not a significant update. Skipping.")
+                    '''
                 except Exception as e:
                     print(Fore.RED + f"Error processing reference alert: {e}" + Fore.RESET)
 
@@ -290,7 +331,7 @@ def main():
                 print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
                 alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
                 try: #try/except as we were getting incomplete file errors!
-                    path, statement = plot_alert_polygon(alert, alert_path, True)
+                    path, statement = plot_alert_polygon(alert, alert_path, True, alert_verb)
 
                     # --- If slideshow is enabled, send it the new alert info ---
                     if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:

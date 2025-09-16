@@ -8,7 +8,6 @@
 *.idx
 *.grib2
 /mrms_stuff
-/BIG_DOMAIN.py
 /latest.grib2
 /counties2
 /api_scrape.py
@@ -18,3 +17,5 @@
 /roads_preprocess.py
 /cities_preprocess.py
 /counties500k
+/bigdomain.py
+/uscities.csv 
