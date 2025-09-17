@@ -45,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.11" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -118,7 +118,7 @@ zone_geometry_cache = {}
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
  #cities w/pop >250
-conus_cities_ds = pd.read_csv('gis/cities_250.csv')
+conus_cities_ds = pd.read_csv('gis/cities_100_lite.csv')
 ak_cities_ds = pd.read_csv('gis/ak_cities.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
@@ -337,6 +337,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
         map_region = [final_minx, final_maxx, final_miny, final_maxy]
         #print(map_region)
+        #print(map_region)
         map_region2 = { # For the MRMS stuff
             "lon_min": final_minx,
             "lon_max": final_maxx,
@@ -402,8 +403,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
         #filter for only cities in map view
         visible_cities_df = cities_ds[
-            (cities_ds['lng'] >= minx) & (cities_ds['lng'] <= maxx) &
-            (cities_ds['lat'] >= miny) & (cities_ds['lat'] <= maxy)
+            (cities_ds['lng'] >= final_minx) & (cities_ds['lng'] <= final_maxx) &
+            (cities_ds['lat'] >= final_miny) & (cities_ds['lat'] <= final_maxy)
         ].copy()
         
         #print(f'total cities available: {len(df_large)}')
@@ -451,11 +452,17 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 weight = 'semibold'
                 color = "#313131"
                 bgcolor = "#ffffff00"
-            else:
+            elif city_pop > 1000:
                 name = city['city_ascii']
                 fontsize = 8
                 weight = 'semibold'
                 color = "#313131"
+                bgcolor = '#ffffff00'
+            else:
+                name = city['city_ascii']
+                fontsize = 7
+                weight = 'semibold'
+                color = "#434343"
                 bgcolor = '#ffffff00'
 
             text_artist = ax.text(
@@ -659,7 +666,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             pdsBox_text = "Waterspouts are POSSIBLE with this storm!\nSeek safe harbor immediately!"
             pdsBox_color = colors['facecolor']
         
-        #create container
+        #create container #TODO: make the pds box a little bit smaller on the horizontal, maybe shift down slightly?
         if pdsBox_text:
             ax.text(
                 x=0.5,                            # Horizontal position (center)
@@ -692,7 +699,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
         plt.savefig(output_path, bbox_inches='tight', dpi= 200)
         
-        area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted
+        area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted #TODO: get this from the cities in the polygon, like the top 4 population. if there isnt any, then use the nws locations. 
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
         if alert_verb == None:
@@ -706,7 +713,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 effect until {formatted_expiry_time}!!\n{desc} '''
         if config.USE_TAGS:
             statement += config.DEFAULT_TAGS
-        print(statement)
+        #print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)

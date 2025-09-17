@@ -62,19 +62,10 @@ warning_types = config.WARNING_TYPES_TO_MONITOR
 posted_alerts = set()
 start_time = time.time()
 
-#df_large = pd.read_csv('filtered_cities_all.csv')
-#logo_path= 'cincyweathernobg.png'
-#logo = mpimg.imread(logo_path)
 required_folders = ['graphics']
 
-#roads = gpd.read_file("ne_10m_roads/ne_10m_roads.shp")
-
-#interstates_all = roads[roads['level'] == 'Interstate']
-#federal_roads_all = roads[roads['level'] == 'Federal']
-#interstates.to_csv('interstates_filtered.csv')
-
 def get_nws_alerts():
-
+    print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL}' + Fore.RESET)
     try:
         response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"})
         response.raise_for_status()
@@ -169,7 +160,7 @@ def post_to_facebook(message, img_path): #message is string & img is https url r
 def clean_filename(name):
     return re.sub(r'[<>:"/\\|?*.]', '', name)
 
-#TODO: TODO: TODO: seperate tor and svr in here, bc tors dont have the wind tag (and sometimes dont have the hail tag) so they cant do the check right, and will not ever list as upgraded. 
+
 def are_alerts_different(new_alert, ref_alert):
     """
     Only works with polygon based alerts 
@@ -190,26 +181,21 @@ def are_alerts_different(new_alert, ref_alert):
         if alert_type == 'Severe Thunderstorm Warning' or alert_type == 'Tornado Warning' or alert_type == 'Tornado Emergency': #not sure if that last one comes through as a seperate thing but worht a shot
             print("checking SVR/TOR attributes...")
 
-            new_maxWindGust = new_params.get('maxWindGust', [None])[0]
+            new_maxWindGust = new_params.get('maxWindGust', ["0"])[0]
             new_maxWindGust = re.sub('[^0-9]','', new_maxWindGust) #regex to remove all letters/spaces
-            ref_maxWindGust = ref_params.get('maxWindGust', [None])[0]
+            ref_maxWindGust = ref_params.get('maxWindGust', ["0"])[0]
             ref_maxWindGust = re.sub('[^0-9]','', ref_maxWindGust)
-            new_maxHailSize = new_params.get('maxHailSize', [None])[0] 
+            new_maxHailSize = new_params.get('maxHailSize', ["0.0"])[0] 
             new_maxHailSize = re.sub('[^0-9.]','', new_maxHailSize) #regex to remove all letter/spaces while keeping in the decimals
-            ref_maxHailSize = ref_params.get('maxHailSize', [None])[0]
+            ref_maxHailSize = ref_params.get('maxHailSize', ["0.0"])[0]
             ref_maxHailSize = re.sub('[^0-9.]','', ref_maxHailSize)
             new_tornadoDetection = new_params.get('tornadoDetection', [None])[0]
             ref_tornadoDetection = ref_params.get('tornadoDetection', [None])[0]
             new_torSeverity = new_params.get('tornadoDamageThreat', [None])[0]
             ref_torSeverity = ref_params.get('tornadoDamageThreat', [None])[0]
             
-            print(new_maxWindGust,ref_maxWindGust,new_maxHailSize,ref_maxHailSize,new_tornadoDetection,ref_tornadoDetection)
+            print(new_maxWindGust,ref_maxWindGust,new_maxHailSize,ref_maxHailSize,new_tornadoDetection,ref_tornadoDetection,new_torSeverity,ref_torSeverity)
             # Compare key attributes that would trigger a new post
-            '''
-            if (new_maxWindGust == ref_maxWindGust and new_maxHailSize == ref_maxHailSize):
-                print("Attributes are the same. This is a duplicate update.")
-                return False, ""
-            '''
             if (int(new_maxWindGust) > int(ref_maxWindGust) or float(new_maxHailSize) > float(ref_maxHailSize)):
                 print("Wind/Hail has increased. UPGRADE")
                 return True, 'upgraded'
@@ -238,7 +224,7 @@ def are_alerts_different(new_alert, ref_alert):
                     return True, 'continued'
             else:
                 print(Back.YELLOW + "how did we get here?? (maybe downgrade?)" + Back.RESET)
-                return True, 'issued'
+                return True, 'continued' #really its more than likely a downgrade, but i dont want to say downgrade as that implies that its chill now (which it may not be)
         elif alert_type == 'Flash Flood Warning': #do ffw specific checks
             print("checking FFW attributes")
             new_ffwDetection = new_params.get('flashFloodDetection', [None])[0]
@@ -311,14 +297,14 @@ def main():
         slideshow_thread.start()
         print(Fore.MAGENTA + "Slideshow thread started." + Fore.RESET)
 
-    print(Fore.CYAN + 'Beginning monitoring of api.weather.gov/alerts/active')
+   
     while True:
         print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET + Fore.RESET)
-            # in test mode, load your UPGRADED alert
-            with open('test_alerts/tore-example.json', 'r') as f:
+            # in test mode, load the UPGRADED alert
+            with open('test_alerts/svr-witharef.json', 'r') as f:
                 loaded_alert = json.load(f)
                 alerts_stack = [loaded_alert]
         else:
@@ -338,19 +324,18 @@ def main():
             floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
             references = properties.get('references') #returns as list
             new_geom = alert['geometry']
-            print(references)
 
             #this should stop cancelled warnings (which come through as svr/svs), but don't have a value for wind/hail from getting gfx made
             #also stops cancelled ffws (which don't have a source for the warning)
             null_check_passed = True
             if awips_id[:2] == "SV": #if alert is type svr or svs
-                if (maxWind == "n/a" and maxHail == "n/a"): #fix so it seperates svr and ffw so they dont always null out
+                if (maxWind == "n/a" and maxHail == "n/a"): 
                     null_check_passed = False
                     print(Fore.RED + f"Null check failed, SVR/SVS expired {clickable_alert_id}")
                 else:
                     null_check_passed = True
             if awips_id[:3] == "FFW" or awips_id[:3] == "FFS": #same but for ffws
-                if (floodDetection == "n/a"): #fix so it seperates svr and ffw so they dont always null out
+                if (floodDetection == "n/a"): 
                     null_check_passed = False
                     print(Fore.RED + f"Null check failed, FFW expired {clickable_alert_id}")
                 else:
@@ -361,7 +346,7 @@ def main():
             references = properties.get('references')
             if references:
                 try:
-                    ref_url = references[0]['@id']
+                    ref_url = references[-1]['@id'] #always gets the last item in list, which is the most recent warning.
                     print(Fore.LIGHTMAGENTA_EX + f"Alert ({clickable_alert_id}) has reference: {ref_url}" + Fore.RESET)
                     if IS_TESTING: #testing for single local alert
                         with open (ref_url, 'r') as f:
@@ -371,14 +356,8 @@ def main():
                         ref_response.raise_for_status()
                         ref_data = ref_response.json()
                     
-                    ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
+                    ref_check_passed, alert_verb = are_alerts_different(alert, ref_data) #check if the alert has a reference AND if its been upgraded
                     print(ref_check_passed, alert_verb)
-                    # Use the helper function to determine if it's a duplicate
-                    '''
-                    if not are_alerts_different(alert, ref_data):
-                        ref_check_passed = False
-                        print("Conclusion: Alert is not a significant update. Skipping.")
-                    '''
                 except Exception as e:
                     print(Fore.RED + f"Error processing reference alert: {e}" + Fore.RESET)
 
@@ -395,8 +374,6 @@ def main():
                     # --- If slideshow is enabled, send it the new alert info ---
                     if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:
                         slideshow_queue.put((path, expiry_time_iso))
-
-                    #print(statement)
                     if config.POST_TO_FACEBOOK:
                         post_to_facebook(statement, alert_path)
                     if config.POST_TO_DISCORD:
