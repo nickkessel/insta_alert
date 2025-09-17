@@ -7,7 +7,7 @@ OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning'
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 # comment out a list to exclude it
 WARNING_TYPES_TO_MONITOR = (
-    SEVERE 
+    OTHER 
 )
 # --- BOUNDING BOXES --- 
 #figure out how to do like polygons or just have a list of counties

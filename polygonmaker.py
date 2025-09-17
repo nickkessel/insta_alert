@@ -45,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.8" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.10" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -118,6 +118,8 @@ zone_geometry_cache = {}
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
  #cities w/pop >250
+conus_cities_ds = pd.read_csv('gis/cities_250.csv')
+ak_cities_ds = pd.read_csv('gis/ak_cities.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
 logo_path= 'testlogo1.png'
@@ -219,9 +221,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
     geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
     issuing_state = alert['properties'].get("senderName")[-2:]
     if issuing_state == 'AK':
-        cities_ds = pd.read_csv('gis/ak_cities.csv') #different pop cutoff to show more places on map 
+        cities_ds = ak_cities_ds  #different pop cutoff to show more places on map 
     else: 
-        cities_ds = pd.read_csv('gis/cities_250.csv')
+        cities_ds = conus_cities_ds 
     
     if not geom:
         print("No geometry found for alert.")
@@ -711,7 +713,7 @@ effect until {formatted_expiry_time}!!\n{desc} '''
         print(Fore.RED + f"Error plotting alert geometry: {e}" + Fore.RESET)
         return None, None
     finally:
-        #plt.close(fig)
+        plt.close(fig) #hey dipshit dont comment this out 
         gc.collect()
 
 

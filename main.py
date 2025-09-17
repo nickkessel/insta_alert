@@ -50,7 +50,7 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
-#TODO: figure out why it is so slow when you first start running the script
+#DONE: figure out why it is so slow when you first start running the script
 #TODO: rename project at some point
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
@@ -178,60 +178,103 @@ def are_alerts_different(new_alert, ref_alert):
     """
     new_geom = new_alert.get('geometry')
     ref_geom = ref_alert.get('geometry')
+    new_params = new_alert['properties']['parameters']
+    ref_params = ref_alert['properties']['parameters']
+    alert_type = new_alert['properties'].get("event")
+
 
     # Case 1: Both are polygon-based (e.g., Warnings)
-    if new_geom and ref_geom:
-        print("checking attributes...")
-        new_params = new_alert['properties']['parameters']
-        ref_params = ref_alert['properties']['parameters']
-        new_maxWindGust = new_params.get('maxWindGust', [None])[0]
-        new_maxWindGust = re.sub('[^0-9]','', new_maxWindGust) #regex to remove all letters/spaces
-        ref_maxWindGust = ref_params.get('maxWindGust', [None])[0]
-        ref_maxWindGust = re.sub('[^0-9]','', ref_maxWindGust)
-        new_maxHailSize = new_params.get('maxHailSize', [None])[0]
-        ref_maxHailSize = ref_params.get('maxHailSize', [None])[0]
-        new_tornadoDetection = new_params.get('tornadoDetection', [None])[0]
-        ref_tornadoDetection = ref_params.get('tornadoDetection', [None])[0]
-        new_torSeverity = new_params.get('tornadoDamageThreat', [None])[0]
-        ref_torSeverity = ref_params.get('tornadoDamageThreat', [None])[0]
-        
-        print(new_maxWindGust,ref_maxWindGust,new_maxHailSize,ref_maxHailSize,new_tornadoDetection,ref_tornadoDetection)
-        # Compare key attributes that would trigger a new post
-        '''
-        if (new_maxWindGust == ref_maxWindGust and new_maxHailSize == ref_maxHailSize):
-            print("Attributes are the same. This is a duplicate update.")
-            return False, ""
-        '''
-        if (int(new_maxWindGust) > int(ref_maxWindGust) or float(new_maxHailSize) > float(ref_maxHailSize)):
-            print("Wind/Hail has increased. UPGRADE")
-            return True, 'upgraded'
-        elif (new_tornadoDetection == 'POSSIBLE' and ref_tornadoDetection == None):
-            print('tor possible, upgrade')
-            return True, 'upgraded'
-        elif (new_tornadoDetection == 'OBSERVED' and ref_tornadoDetection == 'RADAR INDICATED'):
-            print('tor confirmed, upgrade')
-            return True, 'upgraded'
-        elif (new_torSeverity == 'CONSIDERABLE' and ref_torSeverity == None):
-            print('tor severity upgraded, upgrade')
-            return True, 'upgraded'
-        elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == 'CONSIDERABLE'):
-            print('tor severity upgraded, upgrade')
-            return True, 'upgraded'
-        elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == None):
-            print('tor sevrity upgraded, upgrade')
-            return True, 'upgraded'
-        elif int(new_maxWindGust) == int(ref_maxWindGust) and float(new_maxHailSize) == float(ref_maxHailSize): #not checking for tor stuff atm as its kinda confusing with the tor detection
-            print("attributes are the same, checking geometries")
+    if new_geom and ref_geom: #add another check where it only does the parameters stuff for tor and svr, and if/else for ffws, and have seperate logic for those
+        if alert_type == 'Severe Thunderstorm Warning' or alert_type == 'Tornado Warning' or alert_type == 'Tornado Emergency': #not sure if that last one comes through as a seperate thing but worht a shot
+            print("checking SVR/TOR attributes...")
+
+            new_maxWindGust = new_params.get('maxWindGust', [None])[0]
+            new_maxWindGust = re.sub('[^0-9]','', new_maxWindGust) #regex to remove all letters/spaces
+            ref_maxWindGust = ref_params.get('maxWindGust', [None])[0]
+            ref_maxWindGust = re.sub('[^0-9]','', ref_maxWindGust)
+            new_maxHailSize = new_params.get('maxHailSize', [None])[0] 
+            new_maxHailSize = re.sub('[^0-9.]','', new_maxHailSize) #regex to remove all letter/spaces while keeping in the decimals
+            ref_maxHailSize = ref_params.get('maxHailSize', [None])[0]
+            ref_maxHailSize = re.sub('[^0-9.]','', ref_maxHailSize)
+            new_tornadoDetection = new_params.get('tornadoDetection', [None])[0]
+            ref_tornadoDetection = ref_params.get('tornadoDetection', [None])[0]
+            new_torSeverity = new_params.get('tornadoDamageThreat', [None])[0]
+            ref_torSeverity = ref_params.get('tornadoDamageThreat', [None])[0]
+            
+            print(new_maxWindGust,ref_maxWindGust,new_maxHailSize,ref_maxHailSize,new_tornadoDetection,ref_tornadoDetection)
+            # Compare key attributes that would trigger a new post
+            '''
+            if (new_maxWindGust == ref_maxWindGust and new_maxHailSize == ref_maxHailSize):
+                print("Attributes are the same. This is a duplicate update.")
+                return False, ""
+            '''
+            if (int(new_maxWindGust) > int(ref_maxWindGust) or float(new_maxHailSize) > float(ref_maxHailSize)):
+                print("Wind/Hail has increased. UPGRADE")
+                return True, 'upgraded'
+            elif (new_tornadoDetection == 'POSSIBLE' and ref_tornadoDetection == None):
+                print('tor possible, upgrade')
+                return True, 'upgraded'
+            elif (new_tornadoDetection == 'OBSERVED' and ref_tornadoDetection == 'RADAR INDICATED'):
+                print('tor confirmed, upgrade')
+                return True, 'upgraded'
+            elif (new_torSeverity == 'CONSIDERABLE' and ref_torSeverity == None):
+                print('tor severity upgraded, upgrade')
+                return True, 'upgraded'
+            elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == 'CONSIDERABLE'):
+                print('tor severity upgraded, upgrade')
+                return True, 'upgraded'
+            elif (new_torSeverity == 'CATASTROPHIC' and ref_torSeverity == None):
+                print('tor sevrity upgraded, upgrade')
+                return True, 'upgraded'
+            elif int(new_maxWindGust) == int(ref_maxWindGust) and float(new_maxHailSize) == float(ref_maxHailSize): #SHOULD check for downgrades tho#not checking for tor stuff atm as its kinda confusing with the tor detection
+                print("attributes are the same, checking geometries")
+                if shape(new_geom).equals(shape(ref_geom)):
+                    print('geometries are equal, not plotting.')
+                    return False, ''
+                else:
+                    print("Geometries are different.")
+                    return True, 'continued'
+            else:
+                print(Back.YELLOW + "how did we get here?? (maybe downgrade?)" + Back.RESET)
+                return True, 'issued'
+        elif alert_type == 'Flash Flood Warning': #do ffw specific checks
+            print("checking FFW attributes")
+            new_ffwDetection = new_params.get('flashFloodDetection', [None])[0]
+            ref_ffwDetection = ref_params.get('flashFloodDetection', [None])[0]
+            new_ffwDamage = new_params.get('flashFloodDamageThreat', [None])[0]
+            ref_ffwDamage = ref_params.get('flashFloodDamageThreat', [None])[0] #what is the default??? is there one???
+            if (new_ffwDetection == 'OBSERVED' and ref_ffwDetection == 'RADAR INDICATED'):
+                print('ffw confirmed, upgrade')
+                return True, 'upgraded'
+            elif (new_ffwDamage == 'CONSIDERABLE' and ref_ffwDamage == None):
+                print('ffw severity upgraded, upgrade')
+                return True, 'upgraded'
+            elif (new_ffwDamage == 'CATASTROPHIC' and ref_ffwDamage == 'CONSIDERABLE'):
+                print('ffw severity upgraded, upgrade')
+                return True, 'upgraded'
+            elif (new_ffwDamage == 'CATASTROPHIC' and ref_ffwDamage == None):
+                print('ffw severity upgraded, upgrade')
+                return True, 'upgraded'
+            elif (new_ffwDetection == ref_ffwDetection and new_ffwDamage == ref_ffwDamage) or (new_ffwDetection == 'RADAR INDICATED' and ref_ffwDetection == 'OBSERVED') or (new_ffwDamage == None and (ref_ffwDamage == 'CONSIDERABLE' or ref_ffwDamage == 'CATASTROPHIC')): #if all attributes are the same, or a downgrade
+                print("attributes are the same or downgraded, checking geometries")
+                if shape(new_geom).equals(shape(ref_geom)):
+                    print('geometries are equal, not plotting.')
+                    return False, ''
+                else:
+                    print("Geometries are different.")
+                    return True, 'continued'
+            else:
+                print(Back.YELLOW + "how did we get here?? (ffw, downgrades should be covered)" + Back.RESET)
+                return True, 'issued'
+
+        else:
+            print(f'we have a {alert_type}, not sure how we got here?')#probably SPS or SMW or FLA, but i dont think they really do the whole references thing like other alerts do.
             if shape(new_geom).equals(shape(ref_geom)):
                 print('geometries are equal, not plotting.')
                 return False, ''
             else:
                 print("Geometries are different.")
                 return True, 'continued'
-        else:
-            print(Back.YELLOW + "how did we get here?? (maybe downgrade?)" + Back.RESET)
-            return True, 'issued'
-
     # Case 2: Both are zone-based (e.g., Watches)
     elif not new_geom and not ref_geom:
         # Compare by checking if the set of affected zones (UGC codes) is identical
@@ -303,6 +346,7 @@ def main():
                     null_check_passed = True
 
             ref_check_passed = True #default to true as not every alert has a ref check
+            alert_verb = 'issued' #default to issued
             references = properties.get('references')
             if references:
                 try:
