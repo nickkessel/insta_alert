@@ -55,6 +55,7 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
+IS_TESTING = False # Set to True to use local files, False to run normally
 
 warning_types = config.WARNING_TYPES_TO_MONITOR
 # Store already posted alerts to prevent duplicates
@@ -168,6 +169,7 @@ def post_to_facebook(message, img_path): #message is string & img is https url r
 def clean_filename(name):
     return re.sub(r'[<>:"/\\|?*.]', '', name)
 
+#TODO: TODO: TODO: seperate tor and svr in here, bc tors dont have the wind tag (and sometimes dont have the hail tag) so they cant do the check right, and will not ever list as upgraded. 
 def are_alerts_different(new_alert, ref_alert):
     """
     Only works with polygon based alerts 
@@ -243,6 +245,7 @@ def are_alerts_different(new_alert, ref_alert):
             ref_ffwDetection = ref_params.get('flashFloodDetection', [None])[0]
             new_ffwDamage = new_params.get('flashFloodDamageThreat', [None])[0]
             ref_ffwDamage = ref_params.get('flashFloodDamageThreat', [None])[0] #what is the default??? is there one???
+            print(new_ffwDetection,ref_ffwDetection,new_ffwDamage,ref_ffwDamage)
             if (new_ffwDetection == 'OBSERVED' and ref_ffwDetection == 'RADAR INDICATED'):
                 print('ffw confirmed, upgrade')
                 return True, 'upgraded'
@@ -265,10 +268,10 @@ def are_alerts_different(new_alert, ref_alert):
                     return True, 'continued'
             else:
                 print(Back.YELLOW + "how did we get here?? (ffw, downgrades should be covered)" + Back.RESET)
-                return True, 'issued'
+                return True, 'continued'
 
         else:
-            print(f'we have a {alert_type}, not sure how we got here?')#probably SPS or SMW or FLA, but i dont think they really do the whole references thing like other alerts do.
+            #print(f'{alert_type}, not sure how we got here?')#probably SPS or SMW or FLA, but i dont think they really do the whole references thing like other alerts do.
             if shape(new_geom).equals(shape(ref_geom)):
                 print('geometries are equal, not plotting.')
                 return False, ''
@@ -310,10 +313,18 @@ def main():
 
     print(Fore.CYAN + 'Beginning monitoring of api.weather.gov/alerts/active')
     while True:
-        print(Fore.LIGHTCYAN_EX + 'Start scan for alerts')
-        print(Fore.RESET)
-        alerts_stack = get_nws_alerts() #returns list of alerts that fit criteria
-
+        print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
+        alerts_stack = []
+        if IS_TESTING:
+            print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET + Fore.RESET)
+            # in test mode, load your UPGRADED alert
+            with open('test_alerts/tore-example.json', 'r') as f:
+                loaded_alert = json.load(f)
+                alerts_stack = [loaded_alert]
+        else:
+            # in normal mode, fetch live alerts
+            alerts_stack = get_nws_alerts()
+        #print(alerts_stack)
         for alert in alerts_stack:
             #get info about the alert
             properties = alert.get("properties", {})
@@ -327,7 +338,7 @@ def main():
             floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
             references = properties.get('references') #returns as list
             new_geom = alert['geometry']
-            #print(references)
+            print(references)
 
             #this should stop cancelled warnings (which come through as svr/svs), but don't have a value for wind/hail from getting gfx made
             #also stops cancelled ffws (which don't have a source for the warning)
@@ -352,9 +363,13 @@ def main():
                 try:
                     ref_url = references[0]['@id']
                     print(Fore.LIGHTMAGENTA_EX + f"Alert ({clickable_alert_id}) has reference: {ref_url}" + Fore.RESET)
-                    ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
-                    ref_response.raise_for_status()
-                    ref_data = ref_response.json()
+                    if IS_TESTING: #testing for single local alert
+                        with open (ref_url, 'r') as f:
+                            ref_data = json.load(f)
+                    else: #normal, get from the api
+                        ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
+                        ref_response.raise_for_status()
+                        ref_data = ref_response.json()
                     
                     ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
                     print(ref_check_passed, alert_verb)

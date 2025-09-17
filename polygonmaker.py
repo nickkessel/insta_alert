@@ -45,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.5.10" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.5.11" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -270,8 +270,11 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
-        ax.set_title(f"{alert_type.upper()}\nexpires {formatted_expiry_time}", fontsize=14, fontweight='bold', loc='left')
-        
+        if alert_verb == 'upgraded':
+            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #latex/math formatting is also beyond me. ALSO the exclamation point wont be italicized because the default MPL font just straight up doesnt have a glyph for it and the workaround seems way worse than what its at now
+        else:
+            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #dont really need a verb if it is not upgraded i dont think
+
         counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
@@ -489,7 +492,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                  fontsize = 6, color="#000000", backgroundcolor="#96969636")
         fig.text(0.90, 0.92, f'Generated: {datetime.now(pytz.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC ', ha='right', va='top', #time.strftime("%Y-%m-%d %H:%M:%S")
                  fontsize=6, color='#000000', backgroundcolor='#96969636')
-        ax.text(0.01, 0.985, f"Issued {formatted_issued_time} by {issuing_office}", 
+        ax.text(0.01, 0.985, f"{alert_verb.capitalize()} {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
 
@@ -718,7 +721,7 @@ effect until {formatted_expiry_time}!!\n{desc} '''
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/ohio.json', 'r') as file: 
+    with open('test_alerts/tore-example.json', 'r') as file: 
         print('open') 
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/alertverb2', False, None)
+    plot_alert_polygon(test_alert, 'graphics/test/tor_alertverb1', False, 'upgraded')
