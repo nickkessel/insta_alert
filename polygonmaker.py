@@ -45,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.0" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -131,13 +131,8 @@ counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties'
 states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
-highres_roads = gpd.read_file("gis/roads2/tl_2024_us_primaryroads.shp")
-lowres_roads = gpd.read_file('gis/ne_10m_roads/ne_10m_roads.shp') #can't find a better national dataset for us highways
-#print("Unique Route Types (RTTYP) found in the shapefile:", highres_roads['RTTYP'].unique())
-
-print(Back.LIGHTWHITE_EX + 'Roads loaded. Filtering roads.' + Back.RESET)
-interstates = highres_roads[highres_roads['RTTYP'] == 'I']
-us_highways = lowres_roads[lowres_roads['level'] == 'Federal']
+interstates = gpd.read_file("gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
+conus_us_highways = gpd.read_file('gis/conus_us_highways_10tol.fgb') #Currently NOTHING for HI or AK or PR!
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
@@ -279,7 +274,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
-        us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
+        conus_us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
         
         #simplified
@@ -414,7 +409,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         fig.canvas.draw()
         text_candidates = []
         plotted_points = []
-        alert_height = maxy - miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
+        alert_height = final_maxy - final_miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
         print(f'alert height: {alert_height}') 
         '''
         #this could honestly maybe be like dynamically scaled?
@@ -728,7 +723,7 @@ effect until {formatted_expiry_time}!!\n{desc} '''
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/tore-example.json', 'r') as file: 
-        print('open') 
+    with open('test_alerts/downtowncincy.json', 'r') as file: 
+        print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/tor_alertverb1', False, 'upgraded')
+    plot_alert_polygon(test_alert, 'graphics/test/zz_new_ushighways', False, 'upgraded')
