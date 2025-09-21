@@ -250,7 +250,8 @@ POST_TO_FACEBOOK = False
 POST_TO_DISCORD = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
-WEBHOOKS = ['https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU']
+#'https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU' default/'new-logs'
+WEBHOOKS = ['https://discord.com/api/webhooks/1419354620676804748/womab2v6YAhHcNoVtpq3USTqBbJ4uuA0O9vgWWnjo4UmIj-Wcz_EZ4VpJwEGmnX-Z5P7']
 
 # --- CAPTION ---
 DEFAULT_TAGS = '#weather #weatheralert #stayalert #wx'

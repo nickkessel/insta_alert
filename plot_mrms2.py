@@ -101,6 +101,7 @@ normalized_stops3 = [
 ]
 # Create the colormap
 qpe2_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops3)
+MAX_CACHE_SIZE = 10 #how many mrms scans it holds in the cache before it starts deleting 
 
 valid_time = 0
 #really just useful for testing
@@ -227,14 +228,14 @@ def save_mrms_subset(bbox, type, state_borders):
 #cache stores the last successfully downloaded MRMS dataset
 #key is URL, value is a tuple: (timestamp, xarray_dataset)
 mrms_cache = {}
-#locks the thread so that other threads can't "look in" and try and access what its doing while its working
 cache_lock = threading.Lock()
+#locks the thread so that other threads can't "look in" and try and access what its doing while its working
 def get_mrms_data_async(bbox, type, region):
     """
     Fetches and subsets the latest MRMS data using a resilient, thread-safe,
     in-memory cache to improve speed and reliability.
     """
-
+    # This section determines which MRMS product to download
     if region == 'AK':
         ref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/MergedReflectivityAtLowestAltitude/MRMS_MergedReflectivityAtLowestAltitude.latest.grib2.gz'
         qpe_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz'
@@ -250,7 +251,7 @@ def get_mrms_data_async(bbox, type, region):
     else:
         ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
         qpe_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
-        
+
     if type == "Flash Flood Warning" or type == "Flood Advisory" or type == "Flood Warning":
         url = qpe_url
         convert_units = True
@@ -263,70 +264,86 @@ def get_mrms_data_async(bbox, type, region):
         cmap_to_use = radarscope_cmap
         data_min, data_max = min_dbz, max_dbz
         cbar_label = "Reflectivity (dBZ)"
-        
-    #cache logic
+
+    # --- Part 1: Read from the cache ---
     with cache_lock:
-        #check if a fresh dataset is in the cache
         if url in mrms_cache:
-            cache_time, ds = mrms_cache[url]
-            #MRMS data usually updates every 2min, with a 2-4min lag 
+            # The cache tuple is (download_time, dataset, pre-formatted_time_string, last_access_time)
+            cache_time, ds, valid_time_short, access_time = mrms_cache[url]
+            
+            # Check if the cached data is fresh enough to use
             if time.time() - cache_time < 120:
-                #using the fresh dataset (less than 2 min old, will probably need to change this due to the download lag)
                 print(f"Using cached data from: {time.strftime('%H:%M:%S', time.localtime(cache_time))}")
+                
+                # Update the last access time and put it back in the cache
+                mrms_cache[url] = (cache_time, ds, valid_time_short, time.time())
+                
                 lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
                 lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
                 subset = ds.sel(latitude=lat_slice, longitude=lon_slice).load()
-                valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+                
+                # Return the pre-formatted time string directly from the cache
                 return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
-            
-    print(f'cache is stale or empty. fetching new data from {url}')
+
+    # --- Part 2: Fetch new data if cache is empty or stale ---
+    print(f'Cache is stale or empty. Fetching new data from {url}')
     grib_content = None
-    max_retries = 3 #if connection drops, or otherwise ds doesn't download
+    max_retries = 3
     for attempt in range(max_retries):
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
             grib_content = gzip.decompress(response.content)
-            #print(grib_content)
-            print('download successful')
+            print('Download successful')
             break
         except (RequestException, IncompleteRead) as e:
             print(f'Attempt {attempt + 1} failed, retrying')
             if attempt + 1 >= max_retries:
                 print(Back.RED + "All download attempts failed" + Back.RESET)
                 return None, None, None, None, None, None
-            else: 
+            else:
                 time.sleep(3)
-    #Processing logic (in memory)
+                
+    # --- Part 3: Process the new data and add it to the cache ---
     try:
-        #using in-memory buffer to avoid disk writes, should be faster. not sure what the resource usage will be like/ will there be issues related to this
         with tempfile.NamedTemporaryFile(delete=False, suffix='.grib2') as tmp:
             tmp.write(grib_content)
             tmp_path = tmp.name
-        #grib_buffer = io.BytesIO(grib_content)
-        
+            
         ds = xr.open_dataset(tmp_path, engine='cfgrib', backend_kwargs={'decode_timedelta': False})
-        # Load the data into memory before closing the buffer
         ds.load()
-        
-        if convert_units: 
-            ds['unknown'] = ds['unknown'] / 25.4 #mm to in for QPE
+
+        if convert_units:
+            ds['unknown'] = ds['unknown'] / 25.4
+
+        # FIXED: Pre-format the time string here using the correct codes (%H for hour, %M for minute)
+        valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+
         with cache_lock:
+            # Prune the cache if it exceeds the max size
+            if len(mrms_cache) >= MAX_CACHE_SIZE:
+                # Find the least recently used item (based on access_time at index 3) and remove it
+                oldest_url = min(mrms_cache.keys(), key=lambda k: mrms_cache[k][3])
+                del mrms_cache[oldest_url]
+                print(f"Cache limit reached. Removed {oldest_url}")
+
             current_time = time.time()
-            mrms_cache[url] = (current_time, ds)
-            print(Back.GREEN + f'MRMS cache updated at {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(current_time))}' +Back.RESET)
-        #subset the new data for the warning
-        #print(bbox['lon_min'], bbox['lon_max'], bbox['lat_min'], bbox['lat_max'])
+            # Store the new data, including the pre-formatted time string
+            mrms_cache[url] = (current_time, ds, valid_time_short, current_time)
+            print(Back.GREEN + f"MRMS cache updated at {time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(current_time))}" + Back.RESET)
+
+        # Subset the new data and return it
         lon_slice = slice(bbox['lon_min'] + 360, bbox['lon_max'] + 360)
         lat_slice = slice(bbox['lat_max'], bbox['lat_min'])
         subset = ds.sel(latitude=lat_slice, longitude=lon_slice).load()
-        valid_time_short = ds.time.dt.strftime('%H:%M UTC').item()
+        
         return subset, cmap_to_use, data_min, data_max, cbar_label, valid_time_short
+        
     except Exception as e:
-        print(Back.RED + f'an error occurred during xarray processing: {e}' + Back.RESET)
+        print(Back.RED + f'An error occurred during xarray processing: {e}' + Back.RESET)
         return None, None, None, None, None, None
     finally:
-    #clean up
+        # Clean up the temporary file
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.remove(tmp_path)
                 

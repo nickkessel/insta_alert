@@ -1,5 +1,5 @@
 # warnings_on_fb 
-*4,179 (and counting) alerts generated*
+*7,286 (and counting) alerts generated*
 
 ---
 ## What it does:

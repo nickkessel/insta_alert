@@ -115,6 +115,8 @@ ALERT_COLORS = {
 
 start_time = time.time()
 zone_geometry_cache = {}
+MAX_ZONES_IN_CACHE = 200
+tf = TimezoneFinder()
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
  #cities w/pop >250
@@ -180,7 +182,10 @@ def get_alert_geometry(alert):
             if zone_geom_data:
                 zone_shape = shape(zone_geom_data)
                 geometries.append(zone_shape)
-                zone_geometry_cache[zone_url] = zone_shape # Add to cache
+                if len(zone_geometry_cache) >= MAX_ZONES_IN_CACHE:
+                    # remove a random item (simple approach) or the first item
+                    zone_geometry_cache.pop(next(iter(zone_geometry_cache)))
+                zone_geometry_cache[zone_url] = zone_shape
         except requests.RequestException as e:
             print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}" + Fore.RESET)
             continue
@@ -214,7 +219,7 @@ def draw_alert_shape(ax, shp, colors):
 def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
     plot_start_time = time.time()
     geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
-    issuing_state = alert['properties'].get("senderName")[-2:]
+    issuing_state = alert['properties'].get("senderName")[-2:] #last 2 of it
     if issuing_state == 'AK':
         cities_ds = ak_cities_ds  #different pop cutoff to show more places on map 
     else: 
@@ -233,11 +238,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
         #new time stuff
         try:
-            tf = TimezoneFinder()
             centerlon, centerlat = geom.centroid.x, geom.centroid.y
             #print(centerlon, centerlat)
             timezone_str = tf.timezone_at(lng=centerlon, lat= centerlat)
-            #print(f'TZ: {timezone_str}')
             alert_tz = pytz.timezone(timezone_str)
             
             dt_sent = datetime.fromisoformat(issued_time).astimezone(alert_tz)
@@ -262,14 +265,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         #plot setup
         minx, _, maxx, _ = geom.bounds #ignore the lat, as its not relevant here
         #print(minx, maxx)
-
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
         if alert_verb == 'upgraded':
             ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #latex/math formatting is also beyond me. ALSO the exclamation point wont be italicized because the default MPL font just straight up doesnt have a glyph for it and the workaround seems way worse than what its at now
         else:
             ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #dont really need a verb if it is not upgraded i dont think
-
         counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
@@ -333,11 +334,11 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         map_region = [final_minx, final_maxx, final_miny, final_maxy]
         #print(map_region)
         #print(map_region)
-        map_region2 = { # For the MRMS stuff
-            "lon_min": final_minx,
-            "lon_max": final_maxx,
-            "lat_min": final_miny,
-            "lat_max": final_maxy
+        map_region2 = { # For the MRMS stuff, pad it a little bit to not have blank space at the edges
+            "lon_min": final_minx - 0.01,
+            "lon_max": final_maxx + 0.01,
+            "lat_min": final_miny - 0.01,
+            "lat_max": final_maxy + 0.01
         }
         
         ax.set_extent(map_region, crs=ccrs.PlateCarree())
@@ -353,7 +354,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             region = 'AK'
         elif office_awips == 'HFO':
             region = 'HI'
-        elif office_awips == 'GUM':
+        elif office_awips == 'GUM' or issuing_office == 'NWS Tiyan GU':
             region = 'GU'
         else:
             region = 'US'
