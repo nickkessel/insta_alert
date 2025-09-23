@@ -20,6 +20,8 @@ from timezonefinderL import TimezoneFinder
 import gc
 import json
 import config
+from bs4 import BeautifulSoup
+
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -45,7 +47,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -210,6 +212,27 @@ def draw_alert_shape(ax, shp, colors):
         ax.fill(x, y, facecolor=colors['facecolor'] + colors['fillalpha'], zorder=0)
         ax.plot(x, y, color='#000000', linewidth=4, transform=ccrs.PlateCarree(), zorder=4)
         ax.plot(x, y, color=colors['edgecolor'], linewidth=2, transform=ccrs.PlateCarree(), zorder=4)
+
+blank_watch_url = 'https://www.spc.noaa.gov/products/watch/ww' #+ XXXX.html
+def get_watch_attributes(id):
+    id = str(id).zfill(4) #pads the left side w/ 0s until its 4 wide (proper format for the spc website)
+    target_watch_url = f'{blank_watch_url}{id}.html'
+    print(target_watch_url)
+    
+    try:
+        response = requests.get(target_watch_url)
+        html_content = response.content
+        soup = BeautifulSoup(html_content, 'lxml') #want to get the first 6 things with class="wblack"
+        attribs = soup.find_all(class_='wblack')
+        attribs = attribs[:6] #first 6, gets repeitive after that for the like different views
+        watch_attribs = [tag.text for tag in attribs] #get only the text content
+        percents = [tag['title'].replace('% probability', '\%') for tag in attribs] 
+        print(watch_attribs, percents)
+        return watch_attribs, percents
+    except Exception as e:
+        print(f'error getting watch attributes: [{e}]')
+        return ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']
+
 
 
 def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
@@ -490,30 +513,10 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
 
-        
-        #draw radar data in bg, only above the polygon
-        #mrms_img = mpimg.imread(radar_image_path) 
-        #ax.imshow(mrms_img, origin = 'upper', extent = map_region, transform = ccrs.PlateCarree(), zorder = 1)
-        
         # Draw the polygon
         draw_alert_shape(ax, geom, colors)
-        '''
-        if geom.geom_type == 'Polygon':
-            fill_color = colors['facecolor'] + colors['fillalpha'] #rebuild the hexcode w/ alpha
-            edge_color = colors ['edgecolor']
-            
-            x, y = geom.exterior.xy
-            ax.plot(x,y, color='black', linewidth=4, transform = ccrs.PlateCarree(), zorder = 4)
-            ax.plot(x,y, color=edge_color, linewidth=2, transform = ccrs.PlateCarree(), zorder = 4)
-            ax.fill(x,y, fill_color, zorder = 0)
-        elif geom.geom_type == 'MultiPolygon':
-            for poly in geom.geoms:
-                x, y = poly.exterior.xy
-                print("how is there a multipolygon warning?? should look at this...")
-                ax.plot(x, y, color='red', linewidth=2, transform=ccrs.PlateCarree(), zorder = 4)   
-        '''
         #box to show info about hazards like hail/wind if applicable
-        
+
         maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
         maxHail = alert['properties']['parameters'].get('maxHailSize', ["n/a"])[0] #float
         windObserved = alert['properties']['parameters'].get('windThreat', ["n/a"])[0]
@@ -526,10 +529,36 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         snowSquallDetection = alert['properties']['parameters'].get('snowSquallDetection', ['n/a'])[0] #"RADAR INDICATED" or "OBSERVED"
         snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
         waterspoutDetection = alert['properties']['parameters'].get('waterspoutDetection', ['n/a'])[0] #"OBSERVED" or "POSSIBLE"
+        #sps stuff
         fireWeatherThreat = 'n/a'
         denseFogThreat = 'n/a'
         iceThreat = 'n/a'
         additionalHazard = 'n/a' 
+        #watch stuff (add the word and percentage)
+        torProb = 'n/a'
+        sigTorProb = 'n/a'
+        windProb = 'n/a'
+        sigWindProb = 'n/a'
+        hailProb = 'n/a'
+        sigHailProb = 'n/a'
+        
+        watch_attribs, watch_percents = ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']  #default to these
+        if alert_type == 'Severe Thunderstorm Watch' or alert_type == 'Tornado Watch':
+            description_text = alert['properties'].get('description', '').lower()
+            watch_id_match = re.search(r'\b\d{1,4}\b', description_text) #get the first instance of any 1 to 4 digit number in the watch desc (the watch number)
+            if watch_id_match:
+                watch_id = watch_id_match.group(0)
+                watch_attribs, watch_percents = get_watch_attributes(watch_id)
+                torProb = watch_attribs[0] + ' - ' + watch_percents[0]
+                sigTorProb = watch_attribs[1] + ' - ' + watch_percents[1]
+                windProb = watch_attribs[2] + ' - ' + watch_percents[2]
+                sigWindProb = watch_attribs[3] + ' - ' + watch_percents[3]
+                hailProb = watch_attribs[4] + ' - ' + watch_percents[4]
+                sigHailProb = watch_attribs[5] + ' - ' + watch_percents[5]
+            else:
+                print('error getting watch id from watch text!')
+                watch_attribs, watch_percents = ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']
+        
         #handling SMWs because they don't have maxwind/maxhail in their parameters
         if alert_type == 'Special Marine Warning':
             description_text = alert['properties'].get('description','').lower()
@@ -587,12 +616,18 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             (fireWeatherThreat, 'Risk of Fire Weather', ""),
             (denseFogThreat, 'Fog Development', ""),
             (iceThreat, 'Icy Conditions', ""),
-            (additionalHazard, 'Additional Hazards', "")
+            (additionalHazard, 'Additional Hazards', ""),
+            (torProb, 'Tornado Probability', ""),
+            (sigTorProb, 'Sig. Tornado Probability', ""),
+            (windProb, 'Wind Probability', ""),
+            (sigWindProb, 'Sig. Wind Probability', ""),
+            (hailProb, 'Hail Probability', ""),
+            (sigHailProb, 'Sig. Hail Probability', "")
         ]
 
         details_text_lines = []
         for value, label, suffix in hazard_details:
-            if value != "n/a":
+            if value != "n/a" and value != 'n/a - n/a': #second one is for the watch probs if there aren't any
                 # Escape any spaces in the value for LaTeX rendering
                 escaped_value = str(value).replace(" ", r"\ ")
                 
@@ -719,7 +754,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/middleofnowhere.json', 'r') as file: 
+    with open('test_alerts/tstmwatch.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/caption1', False, 'upgraded')
+    plot_alert_polygon(test_alert, 'graphics/test/watch1', False, 'issued')

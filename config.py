@@ -7,7 +7,7 @@ OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning'
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 # comment out a list to exclude it
 WARNING_TYPES_TO_MONITOR = (
-    SEVERE + OTHER + WATCHES
+     WATCHES
 )
 # --- BOUNDING BOXES --- 
 #figure out how to do like polygons or just have a list of counties
@@ -253,9 +253,9 @@ POST_TO_FACEBOOK = False
 POST_TO_DISCORD = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
-#'https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU' default/'new-logs'
-WEBHOOKS = ['https://discord.com/api/webhooks/1419354620676804748/womab2v6YAhHcNoVtpq3USTqBbJ4uuA0O9vgWWnjo4UmIj-Wcz_EZ4VpJwEGmnX-Z5P7']
-
+new_logs = 'https://discord.com/api/webhooks/1410375879305068605/KozzDWwx4tZGqOZFf5iUzw7bdXviILfgwkz1ggh0ujDlHjOWT9U_GnoCtklzWt7JPQaU'
+cincy_wx = 'https://discord.com/api/webhooks/1419354620676804748/womab2v6YAhHcNoVtpq3USTqBbJ4uuA0O9vgWWnjo4UmIj-Wcz_EZ4VpJwEGmnX-Z5P7'
+WEBHOOKS = [new_logs]
 # --- CAPTION ---
 DEFAULT_TAGS = '#weather #weatheralert #stayalert #wx'
 USE_TAGS = True
