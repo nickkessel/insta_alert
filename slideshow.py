@@ -102,7 +102,7 @@ def run_slideshow(update_queue):
 
             if time_since_switch < SLIDE_DURATION:
                 # Display the current slide
-                screen.blit(current_img, (0, 0))
+                screen.blit(current_img, (0, 0)) #using a lot of memory
             elif time_since_switch < TOTAL_SLIDE_TIME:
                 # Perform the crossfade transition
                 next_index = (current_slide_index + 1) % len(active_slides)

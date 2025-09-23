@@ -245,8 +245,8 @@ CONUS_BBOX = { #just everywhere
 CINCY_ZONES = [ #clermont, brown, adams, highland, hamilton, warren, butler, clinton, franklin IN, dearborn IN, ohio IN, boone ky, kenton ky, campbell ky
   'OHC025', 'OHC015', 'OHC001', 'OHC071', 'OHC061', 'OHC165', 'OHC017', 'OHC027', 'INC047', 'INC029', 'INC115', 'KYC015', 'KYC117', 'KYC037']
 ACTIVE_BBOX = CONUS_BBOX
+EVERYWHERE = True #polls for all alerts, ignores the active_zones flag
 ACTIVE_ZONES = CINCY_ZONES #counties are w/ a C, marine zones w/ a Z
-
 # --- TARGETS ---
 # Set to True to enable posting, False to disable
 POST_TO_FACEBOOK = False

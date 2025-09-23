@@ -91,13 +91,17 @@ def get_nws_alerts():
                     for lon, lat in points
                 )
                 return is_inside #true/false
-            def county_in_selected(zones, target):
-                if not target.isdisjoint(zones): 
-                    print('alert in target zones')
+            
+            def county_in_selected(zones, target, skip = config.EVERYWHERE):
+                if skip :
                     return True
                 else:
-                    print('alert not in target zones')
-                    return False
+                    if not target.isdisjoint(zones): 
+                        print('alert in target zones')
+                        return True
+                    else:
+                        print('alert not in target zones')
+                        return False
                 
             target_zones_set = set(config.ACTIVE_ZONES)
             if event_type in warning_types and county_in_selected(affected_zones, target_zones_set): # and any_point_in_bbox(geometry, config.ACTIVE_BBOX) :
@@ -402,9 +406,6 @@ def main():
 for folder in required_folders:
     print(f"checking for required folder: {folder}")
     os.makedirs(folder, exist_ok= True)
-main()
 
-'''
 if __name__ == "__main__":
     main()
-'''
