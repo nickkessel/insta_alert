@@ -1,7 +1,7 @@
 #using this as like a test thing
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-from shapely.geometry import shape
+from shapely.geometry import shape, Point
 import pandas as pd
 from datetime import datetime
 import pytz
@@ -45,7 +45,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.1" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.3" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -108,10 +108,6 @@ ALERT_COLORS = {
         "fillalpha": "50"
     }
 }
-
-#reader = shpreader.Reader('countyl010g.shp')
-#counties = list(reader.geometries())
-#COUNTIES = cfeature.ShapelyFeature(counties, ccrs.PlateCarree())
 
 start_time = time.time()
 zone_geometry_cache = {}
@@ -410,31 +406,23 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         fig.canvas.draw()
         text_candidates = []
         plotted_points = []
+        impacted_cities = [] #to include in the caption
         alert_height = final_maxy - final_miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
-        print(f'alert height: {alert_height}') 
-        '''
-        #this could honestly maybe be like dynamically scaled?
-        if alert_height > 1 and alert_height <= 1.75: 
-            min_distance_deg = 0.08 #0.065 is good for 0.2-0.3 scale
-        elif alert_height > 1.75 and alert_height <= 2.5:
-            min_distance_deg = 0.12
-        elif alert_height > 2.5:
-            min_distance_deg = 0.2
-        elif alert_height <= 1:
-            min_distance_deg = 0.04
-        '''
+        print(f'alert height: {alert_height} degs') 
+
         min_distance_deg = alert_height/9 #8 or 9 or 10 seems to work well. lower if the map seems too cluttered
         for _, city in visible_cities_df.iterrows():
             city_x = city['lng']
             city_y = city['lat']
             city_pop = city['population']
+            city_state = city['state_id']
             
             #skip if too close to already plotted city
             too_close = any(hypot(city_x - px, city_y - py) < min_distance_deg for px, py in plotted_points)
             if too_close:
                 continue
-            #actually plot city
             
+            #now, actually plot city
             scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".", zorder = 5) #city marker icons
             if city_pop > 60000:
                 name = city['city_ascii'].upper()
@@ -470,7 +458,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             )
             text_artist.set_clip_box(clip_box)
             text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.5, foreground='white'), PathEffects.Normal()])
-            text_candidates.append((text_artist, scatter, city_x, city_y, city['city_ascii'], city_pop))
+            text_candidates.append((text_artist, scatter, city_x, city_y, city['city_ascii'], city_state, city_pop))
             plotted_points.append((city_x, city_y))
         
         fig.canvas.draw()
@@ -479,7 +467,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         accepted_bboxes = []
         final_texts = []
         
-        for text_artist, scatter, x, y, city_name, city_pop1 in text_candidates:
+        for text_artist, scatter, x, y, city_name, city_state, city_pop1 in text_candidates:
             bbox = text_artist.get_window_extent(renderer=renderer)
             
             if any(bbox.overlaps(existing) for existing in accepted_bboxes):
@@ -489,6 +477,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             else:
                 accepted_bboxes.append(bbox)
                 final_texts.append(text_artist)
+                city_point = Point(x, y)
+                if geom.contains(city_point):
+                    impacted_cities.append(f'{city_name}, {city_state}')
                 #print(f'plotted {city_name}, population: {city_pop1}')
                 
         fig.text(0.90, 0.96, f'v.{VERSION_NUMBER}', ha='right', va='top', 
@@ -694,22 +685,26 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
         plt.savefig(output_path, bbox_inches='tight', dpi= 200)
-        
-        area_desc = alert['properties'].get('areaDesc', ['n/a']) #area impacted #TODO: get this from the cities in the polygon, like the top 4 population. if there isnt any, then use the nws locations. 
+        if len(impacted_cities) == 0:
+            area_desc = alert['properties'].get('areaDesc', ['n/a'])
+        elif len(impacted_cities) < 4:
+            area_desc = ", ".join(impacted_cities) 
+        elif len(impacted_cities) >= 4:
+            area_desc = ", ".join(impacted_cities[:3]) 
+          #area impacted #DONE: get this from the cities in the polygon, like the top 4 population. if there isnt any, then use the nws locations. 
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
         if alert_verb == None:
             alert_verb = 'issued'
-        
+                    
         if alert_type == 'Special Weather Statement' or alert_type == 'Special Marine Warning':
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         
-        statement = f'''{alert_type} {alert_verb}, including {area_desc}! This alert is in 
-effect until {formatted_expiry_time}!!\n{desc} '''
+        statement = f'''{alert_type} {alert_verb}, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} '''
         if config.USE_TAGS:
             statement += config.DEFAULT_TAGS
-        #print(statement)
+        print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)
@@ -724,7 +719,7 @@ effect until {formatted_expiry_time}!!\n{desc} '''
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/downtowncincy.json', 'r') as file: 
+    with open('test_alerts/middleofnowhere.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/zz_new_ushighways', False, 'upgraded')
+    plot_alert_polygon(test_alert, 'graphics/test/caption1', False, 'upgraded')
