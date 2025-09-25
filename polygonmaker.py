@@ -47,7 +47,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.4" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -132,7 +132,7 @@ states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
 interstates = gpd.read_file("gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
-conus_us_highways = gpd.read_file('gis/conus_us_highways_10tol.fgb') #Currently NOTHING for HI or AK or PR!
+us_highways = gpd.read_file('gis/all_us_highways_10tol.fgb') #us highways for conus and state highways for ak/hi. dataset does not have us/state highways equivalents for PR...
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
@@ -294,7 +294,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
-        conus_us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
+        us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
         
         #simplified
@@ -754,7 +754,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 
 
 if __name__ == '__main__': 
-    with open('test_alerts/tstmwatch.json', 'r') as file: 
+    with open('test_alerts/interior_ak.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/watch1', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/newhighways4', False, 'issued')
