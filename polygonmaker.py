@@ -47,7 +47,7 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.5" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+VERSION_NUMBER = "0.6.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -448,33 +448,33 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             #now, actually plot city
             scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".", zorder = 5) #city marker icons
             if city_pop > 60000:
-                name = city['city_ascii'].upper()
+                name = city['city_ascii'] #.upper()
                 fontsize = 12
                 weight = 'semibold'
-                color = "#222222"
+                color = "#101010"
                 bgcolor = '#ffffff00'
             elif city_pop > 10000:
                 name = city['city_ascii']
-                fontsize = 10
-                weight = 'semibold'
-                color = "#313131"
+                fontsize = 11
+                weight = 'normal'
+                color = "#101010"
                 bgcolor = "#ffffff00"
             elif city_pop > 1000:
                 name = city['city_ascii']
-                fontsize = 8
-                weight = 'semibold'
-                color = "#313131"
+                fontsize = 9
+                weight = 'normal'
+                color = "#101010"
                 bgcolor = '#ffffff00'
             else:
                 name = city['city_ascii']
                 fontsize = 7
-                weight = 'semibold'
-                color = "#434343"
+                weight = 'normal'
+                color = "#232323"
                 bgcolor = '#ffffff00'
 
             text_artist = ax.text(
                 city_x, city_y, name,
-                fontfamily='monospace', fontsize=fontsize, weight=weight,
+                fontfamily='sans-serif', fontsize=fontsize, weight=weight,
                 fontstretch='ultra-condensed', ha='center', va='bottom',
                 c=color, transform=ccrs.PlateCarree(), clip_on=True,
                 backgroundcolor=bgcolor, zorder = 5
@@ -752,9 +752,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         plt.close(fig) #hey dipshit dont comment this out 
         gc.collect()
 
-
 if __name__ == '__main__': 
-    with open('test_alerts/interior_ak.json', 'r') as file: 
+    with open('test_alerts/downtowncincy.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/newhighways4', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/text7', False, 'issued')
