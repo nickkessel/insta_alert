@@ -117,7 +117,7 @@ MAX_ZONES_IN_CACHE = 200
 tf = TimezoneFinder()
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
- #cities w/pop >250
+#cities w/pop >250
 conus_cities_ds = pd.read_csv('gis/cities_100_lite.csv')
 ak_cities_ds = pd.read_csv('gis/ak_cities.csv')
 
@@ -129,6 +129,8 @@ print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + 
 # Load the two layers from the single, pre-processed gpkg file.
 counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties')
 states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
+
+lakes = gpd.read_file("gis/lakes/ne_10m_lakes_north_america.shp")
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
 interstates = gpd.read_file("gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
@@ -296,6 +298,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
         us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
+        lakes.plot(ax=ax, linewidth = 2, edgecolor='blue', facecolor="#7685d7", transform = ccrs.PlateCarree(), zorder = 2)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
