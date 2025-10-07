@@ -1,0 +1,25 @@
+[project]
+name = 'insta-alert'
+version = '0.6.8'
+requires-python = '>=3.12'
+
+dependencies = [
+    "requests",
+    "discord-webhook",
+    "matplotlib",
+    "cartopy",
+    "geopandas",
+    "shapely",
+    "pandas",
+    "xarray",
+    "pytz",
+    "timezonefinderL",
+    "beautifulsoup4",
+    "lxml",
+    "cfgrib",
+    "python-dotenv",
+    "colorama",
+]
+
+[tool.setuptools]
+py-modules = ['main', 'plot_mrms2', 'polygonmaker', 'config', 'post_to_ig']

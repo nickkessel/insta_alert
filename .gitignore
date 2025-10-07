@@ -1,17 +1,40 @@
+#caches
 /__pycache__
-/.env
-/venv
-/test_alerts
-/plot_l3.py
-/plot_mrms.py
-/graphics
+*.pyc
+*.pyo
+*.pyd
 *.idx
 *.grib2
-/mrms_stuff
 /latest.grib2
+
+#virtual environments
+/venv
+/.venv
+
+#secrets
+/.env
+/session*
+
+#build artifacts
+/insta_alert.egg-info
+build/
+dist/
+
+#IDE folders
+.vscode/
+.idea/
+
+#misc folders
+/graphics
+/test_alerts
+/mrms_stuff
+/loggedAlerts
+
+#deprecated/testing scripts and assets
+/plot_l3.py
+/plot_mrms.py
 /counties2
 /api_scrape.py
-/loggedAlerts
 /counties5m
 /gis_preprocess.py
 /roads_preprocess.py

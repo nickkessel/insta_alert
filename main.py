@@ -16,37 +16,11 @@ from discord_webhook import DiscordWebhook, DiscordEmbed
 import threading #slideshow
 import queue #slideshow
 import config
+from post_to_ig import  make_instagram_post, instagram_login
 load_dotenv()
 load_done_time = time.time() - load_time
 print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
-#TODO: these are roughly (ish) in order of do first/last. simpler stuff is kinda to the top
-#DONE different color warnings tor = red, svr = yellow, flashflood = green, tor-r = wideborder red, pds-tor = magenta, svr-destructive/considerable = wideborder yellow
-#DONE add to header text expiration time for warning
-#DONE make bigger cities have bigger labels. could probably do a few "bins" e.g. >40000 biggest font, 10000-40000 medium font, <10000 small font? trial and error, should not be too hard.
-#DONEchange city label font; thinking monospace all-caps for legibility.
-#DONE change city markers; thinking "plus" signs?
-#DONE make county borders thinner, help with legibility
-#DONE fix it so that it only tries to plot cities in the map region, not plot everything in the dataset then only show a small subset
-# check through list of params (hailsize, windspeed, torpossible, etc) and for the ones that are present, draw in box on map in corner of view
-#DONE declutter map with place names: either:
-    #1) manually change csv to have only chosen places names (easier, lots of trial and error to get it good. not scalable/applicable to different locales, would have to redo it for that)
-    #2) write loop that checks lat/lon of each place being plotted and if it's too close to another lat/lon, don't plot. also account for zoom level, e.g. if we're more zoomed in, the lat/lon
-        #between place names can be less, and if more zoomed out, then adjust the other way, have lat/lon tolerance be larger, to plot less names.
-        #also make sure bigger cities are plotted first, so they're not accidently left out. this method is probably a lot more work up front, but once it's working should be able to be
-        #applied to multiple regions wihtout much difficulty
-#DONE fix error with plotting cities where some are labeled like on the edge of the map. not sure how to do this.
 
-#add support for pds tor warnings and considerable/destructive svr. could be a little box below the issued time ("this is a destructive storm! this is a paticularly dangerous situation! need to see how these come across in the json")
-#fix weird scaling issue with different sized warnings
-#make cities out of the polygon paler
-#maybe declutter the map some by either keeping zoom closer to the box or having lower density of ciites
-# DONE figure out why adding warning to the posted_alerts[] list still plots again
-#make it so that updates to existing warnings don't post unless there is a different geometry or parameters.
-    #use the "references" field in the json to check, maybe?
-    #for svr warnings expiring, if there is no wind/hail value, then it is a cancellation
-#optimisations!! once everything is working, make it fast. cache as much as possible, especially the city names csv, only have my region cities
-#TODO: add to caption if an alert has been upgraded (This warning has been UPGRADED) (DK: was going to do this, however unsure if my idea would work with how the script parses this so far)
-#DONE add support for special weather statement/special marine warning
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
@@ -379,7 +353,7 @@ def main():
                 )
                 print(Fore.LIGHTBLUE_EX + message)
                 print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
-                alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
+                alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.jpg'
                 try: #try/except as we were getting incomplete file errors!
                     path, statement = plot_alert_polygon(alert, alert_path, True, alert_verb)
 
@@ -390,6 +364,10 @@ def main():
                         post_to_facebook(statement, alert_path)
                     if config.POST_TO_DISCORD:
                         log_to_discord(statement, alert_path)
+                    if config.POST_TO_INSTAGRAM_STORY:
+                        make_instagram_post(statement, alert_path, 'story', ig_client)
+                    if config.POST_TO_INSTAGRAM_GRID:
+                        make_instagram_post(statement, alert_path, 'grid', ig_client)
                     posted_alerts.add(alert_id)
                 except Exception as e:
                     print(Back.RED + f'An error occurred. Waiting 15 seconds then restarting.' + Back.RESET)
@@ -408,4 +386,6 @@ for folder in required_folders:
     os.makedirs(folder, exist_ok= True)
 
 if __name__ == "__main__":
+    if config.POST_TO_INSTAGRAM_GRID or config.POST_TO_INSTAGRAM_STORY: #if we are doing any instagramming at all
+        ig_client = instagram_login(os.getenv("IG_USER"), os.getenv("IG_PASS"))
     main()

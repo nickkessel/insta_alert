@@ -21,7 +21,7 @@ import gc
 import json
 import config
 from bs4 import BeautifulSoup
-
+import importlib.metadata
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -47,7 +47,10 @@ ZORDER STACK
 5 - city/town names
 7 - UI elements (issued time, logo, colorbar, radar time, hazards box, pdsbox)
 '''
-VERSION_NUMBER = "0.6.6" #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+try:    
+    VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
+except importlib.metadata.PackageNotFoundError:
+    VERSION_NUMBER = '0.6.7'
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -102,6 +105,11 @@ ALERT_COLORS = {
     'Flash Flood Watch': {
         'facecolor': "#2E8B57",
         'edgecolor': "#168445",
+        'fillalpha': '50'
+    },
+    'Dense Fog Advisory': {
+        'facecolor': "#708090",
+        'edgecolor': "#565F68",
         'fillalpha': '50'
     },
     "default": {
@@ -288,17 +296,27 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         #print(minx, maxx)
         fig, ax = plt.subplots(figsize=(9, 6), subplot_kw={'projection': ccrs.PlateCarree()})
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
+        formatted_alert_type = alert_type.upper().replace(' ', r'\ ')
+
         if alert_verb == 'upgraded':
-            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #latex/math formatting is also beyond me. ALSO the exclamation point wont be italicized because the default MPL font just straight up doesnt have a glyph for it and the workaround seems way worse than what its at now
+            # Use the pre-formatted variable in the title string.
+            ax.set_title(fr"$\mathbf{{{formatted_alert_type}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left') #latex/math formatting is also beyond me. ALSO the exclamation point wont be italicized because the default MPL font just straight up doesnt have a glyph for it and the workaround seems way worse than what its at now
         else:
-            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #dont really need a verb if it is not upgraded i dont think
+            # Also use the pre-formatted variable here.
+            ax.set_title(fr"$\mathbf{{{formatted_alert_type}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #dont really need a verb if it is not upgraded i dont think
+        '''
+        if alert_verb == 'upgraded':
+            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  
+        else:
+            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left') 
+        '''
         counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
         us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
-        lakes.plot(ax=ax, linewidth = 2, edgecolor='blue', facecolor="#7685d7", transform = ccrs.PlateCarree(), zorder = 2)
+        lakes.plot(ax=ax, linewidth = 1.2, edgecolor="#45a4f3ff", facecolor="#8cc4f1c5", transform = ccrs.PlateCarree(), zorder = 2)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -470,7 +488,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 bgcolor = '#ffffff00'
             else:
                 name = city['city_ascii']
-                fontsize = 7
+                fontsize = 8
                 weight = 'normal'
                 color = "#232323"
                 bgcolor = '#ffffff00'
@@ -509,9 +527,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 #print(f'plotted {city_name}, population: {city_pop1}')
                 
         fig.text(0.90, 0.96, f'v.{VERSION_NUMBER}', ha='right', va='top', 
-                 fontsize = 6, color="#000000", backgroundcolor="#96969636")
+                    fontsize = 6, color="#000000", backgroundcolor="#96969636")
         fig.text(0.90, 0.92, f'Generated: {datetime.now(pytz.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC ', ha='right', va='top', #time.strftime("%Y-%m-%d %H:%M:%S")
-                 fontsize=6, color='#000000', backgroundcolor='#96969636')
+                    fontsize=6, color='#000000', backgroundcolor='#96969636')
         ax.text(0.01, 0.985, f"{alert_verb.capitalize()} {formatted_issued_time} by {issuing_office}", 
                 transform=ax.transAxes, ha='left', va='top', 
                 fontsize=9, backgroundcolor="#eeeeeecc", zorder = 7) #plotting this down here so it goes on top of city names
@@ -604,6 +622,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 iceThreat = 'Black Ice Possible'
             if re.search(funnel_regex, search_text, re.IGNORECASE):
                 additionalHazard = 'Funnel Clouds Possible'
+        
+        if alert_type == 'Dense Fog Advisory':
+            denseFogThreat = 'Likely'
              
         hazard_details = [
             (maxWind, 'Max. Wind Gusts', ""),
@@ -722,7 +743,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         # Save the image
         
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
-        plt.savefig(output_path, bbox_inches='tight', dpi= 200)
+        plt.savefig(output_path, bbox_inches='tight', dpi= 400)
         if len(impacted_cities) == 0:
             area_desc = alert['properties'].get('areaDesc', ['n/a'])
         elif len(impacted_cities) < 4:
@@ -739,7 +760,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             if instructions != None: #sometimes instructions are null, which errors out the description generation. not good
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         
-        statement = f'''{alert_type} {alert_verb}, including {area_desc}! This alert is in effect until {formatted_expiry_time}!!\n{desc} '''
+        #use exclamation marks or just a period:
+        if alert_type == 'Tornado Warning' or alert_type == 'Severe Thunderstorm Warning' or alert_type == 'Flash Flood Warning' or alert_type == 'Special Marine Warning':
+            punc = "!"
+        else: 
+            punc = "."
+        statement = f'''{alert_type} {alert_verb}, including {area_desc}{punc} This alert is in effect until {formatted_expiry_time}{punc}\n{desc} '''
         if config.USE_TAGS:
             statement += config.DEFAULT_TAGS
         print(statement)
