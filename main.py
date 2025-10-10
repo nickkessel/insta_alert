@@ -1,5 +1,5 @@
 from colorama import Fore, Back
-import time
+import time, datetime
 load_time = time.time()
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 1' + Fore.RESET + Back.RESET)
 from shapely.geometry import shape
@@ -31,7 +31,7 @@ FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
 IS_TESTING = False # Set to True to use local files, False to run normally
 
-warning_types = config.WARNING_TYPES_TO_MONITOR
+warning_types = config.ALERT_TYPES_TO_MONITOR
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -39,7 +39,7 @@ start_time = time.time()
 required_folders = ['graphics']
 
 def get_nws_alerts():
-    print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL}' + Fore.RESET)
+    print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL} at {datetime.datetime.now(datetime.timezone.utc).strftime("%m/%d %H:%M:%S")}Z' + Fore.RESET)
     try:
         response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"})
         response.raise_for_status()
@@ -355,7 +355,14 @@ def main():
                 print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
                 alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.jpg'
                 try: #try/except as we were getting incomplete file errors!
-                    path, statement = plot_alert_polygon(alert, alert_path, True, alert_verb)
+                    plot_mrms = True #default, we want to plot radar
+                    properties = alert["properties"]
+                    event_type = properties.get("event")
+                    no_mrms_list = ['Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory']
+                    if event_type in no_mrms_list:
+                        plot_mrms = False
+                    
+                    path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
 
                     # --- If slideshow is enabled, send it the new alert info ---
                     if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:

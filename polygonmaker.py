@@ -50,7 +50,9 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.6.7'
+    VERSION_NUMBER = '0.6.9'
+    
+print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
     "Severe Thunderstorm Warning": {
         "facecolor": "#ffff00", # yellow
@@ -110,6 +112,16 @@ ALERT_COLORS = {
     'Dense Fog Advisory': {
         'facecolor': "#708090",
         'edgecolor': "#565F68",
+        'fillalpha': '50'
+    },
+    'Freeze Warning': {
+        'facecolor': "#5E54A5",
+        'edgecolor': "#483D8B",
+        'fillalpha': '50'
+    },
+    'Frost Advisory': {
+        'facecolor': "#73A0F3",
+        'edgecolor': "#437DEA",
         'fillalpha': '50'
     },
     "default": {
@@ -244,10 +256,18 @@ def get_watch_attributes(id):
         return ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']
 
 
-
 def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
     plot_start_time = time.time()
     geom, geom_type = get_alert_geometry(alert) #returns geometry shape and if it is polygon or zone/county
+    minx0, _, maxx0, _ = geom.bounds #i swear i've got minx and maxx defined in like 10k places so these will be unique ones
+    width = maxx0 - minx0
+    # factor of the width to buffer
+    buffer_dist = width * 0.017 #0.0175 works well, 0.02 might be too much
+    geom = geom.buffer(buffer_dist).buffer(-buffer_dist) #smooths out (expanding like circle thing from the points) and then back in, removing some of the complex points/geoms 
+    
+    tolerance = width * 0.001 #simplify to reduce vertices #0.001 works well
+    geom = geom.simplify(tolerance, preserve_topology= True)
+    
     issuing_state = alert['properties'].get("senderName")[-2:] #last 2 of it
     if issuing_state == 'AK':
         cities_ds = ak_cities_ds  #different pop cutoff to show more places on map 
@@ -304,12 +324,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         else:
             # Also use the pre-formatted variable here.
             ax.set_title(fr"$\mathbf{{{formatted_alert_type}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  #dont really need a verb if it is not upgraded i dont think
-        '''
-        if alert_verb == 'upgraded':
-            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + " -" + fr" $\mathit{{{alert_verb.capitalize()}!}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left')  
-        else:
-            ax.set_title(fr"$\mathbf{{{alert_type.upper().replace(' ', r'\ ')}}}$" + "\n" + f"expires {formatted_expiry_time}", fontsize=14, loc='left') 
-        '''
+
         counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
         #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
@@ -782,7 +797,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/downtowncincy.json', 'r') as file: 
+    with open('test_alerts/detroitfrostadv.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/text7', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/simpleborders4', False, 'issued')
