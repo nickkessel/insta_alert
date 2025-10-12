@@ -1,4 +1,4 @@
-from colorama import Fore, Back
+from colorama import Fore, Back, Style
 import time, datetime
 load_time = time.time()
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 1' + Fore.RESET + Back.RESET)
@@ -17,6 +17,8 @@ import threading #slideshow
 import queue #slideshow
 import config
 from post_to_ig import  make_instagram_post, instagram_login
+import ijson
+import gzip
 load_dotenv()
 load_done_time = time.time() - load_time
 print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
@@ -39,15 +41,20 @@ start_time = time.time()
 required_folders = ['graphics']
 
 def get_nws_alerts():
-    print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL} at {datetime.datetime.now(datetime.timezone.utc).strftime("%m/%d %H:%M:%S")}Z' + Fore.RESET)
+    print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL} at {datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%Sz %m/%d")}' + Fore.RESET)
     try:
-        response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"})
+        response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"}, stream = True)
         response.raise_for_status()
-        alerts = response.json().get("features", [])
-        print(f"Fetched {len(alerts)} total alerts from NWS")
+        #alerts = response.json().get("features", [])
+        #handle alerts 1 by 1 in a stream, decompressing each file as you go
+        decompressed_stream = gzip.GzipFile(fileobj=response.raw)
+        alerts = ijson.items(decompressed_stream, 'features.item')
+        print( Back.GREEN + Fore.BLACK + "Connected to alerts stream, start processing" + Style.RESET_ALL)
 
         filtered_alerts = []
+        total_alerts_processed = 0
         for alert in alerts:
+            total_alerts_processed += 1
             properties = alert["properties"]
             event_type = properties.get("event")
             affected_zones = properties.get("geocode", {}).get("UGC", [])
@@ -71,10 +78,10 @@ def get_nws_alerts():
                     return True
                 else:
                     if not target.isdisjoint(zones): 
-                        print('alert in target zones')
+                        #print('alert in target zones')
                         return True
                     else:
-                        print('alert not in target zones')
+                        #print('alert not in target zones')
                         return False
                 
             target_zones_set = set(config.ACTIVE_ZONES)
@@ -84,10 +91,13 @@ def get_nws_alerts():
             #else:
                 #print(f'{event_type} not in zone')
 
-        print(f"Returning {len(filtered_alerts)} filtered alerts")
+        print(Back.GREEN + f"Returning {len(filtered_alerts)} filtered alerts. Total processed: {total_alerts_processed}" + Back.RESET)
         return filtered_alerts
     except requests.RequestException as e:
-        print(f"Error fetching NWS alerts: {e}")
+        print(f"Error fetching NWS alerts (request exception): {e}")
+        return []
+    except Exception as e:
+        print(f'An error occurred during JSON stream processing: {e}')
         return []
 
 def log_to_discord(message, img_path):
@@ -301,6 +311,7 @@ def main():
             #get info about the alert
             properties = alert.get("properties", {})
             awips_id = alert['properties']['parameters'].get('AWIPSidentifier', ['ERROR'])[0] #ex. SVSILN or TORGRR
+            event_type = properties.get("event")
             clickable_alert_id = properties.get("@id") #with https, etc so u can click in terminal
             alert_id = properties.get("id") #just the id
             expiry_time_iso = properties.get("expires") # <-- Added for slideshow
@@ -313,6 +324,7 @@ def main():
 
             #this should stop cancelled warnings (which come through as svr/svs), but don't have a value for wind/hail from getting gfx made
             #also stops cancelled ffws (which don't have a source for the warning)
+            #also will stop expired/cancelled flood watches
             null_check_passed = True
             if awips_id[:2] == "SV": #if alert is type svr or svs
                 if (maxWind == "n/a" and maxHail == "n/a"): 
@@ -324,6 +336,12 @@ def main():
                 if (floodDetection == "n/a"): 
                     null_check_passed = False
                     print(Fore.RED + f"Null check failed, FFW expired {clickable_alert_id}")
+                else:
+                    null_check_passed = True
+            if event_type == 'Flood Watch':
+                if (properties.get('urgency') == "Past"):
+                    null_check_passed = False
+                    print(Fore.RED + f"Null check failed, Flood Watch expired {clickable_alert_id}")
                 else:
                     null_check_passed = True
 
@@ -357,7 +375,6 @@ def main():
                 try: #try/except as we were getting incomplete file errors!
                     plot_mrms = True #default, we want to plot radar
                     properties = alert["properties"]
-                    event_type = properties.get("event")
                     no_mrms_list = ['Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory']
                     if event_type in no_mrms_list:
                         plot_mrms = False

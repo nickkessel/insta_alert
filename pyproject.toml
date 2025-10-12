@@ -1,6 +1,6 @@
 [project]
 name = 'insta-alert'
-version = '0.6.8'
+version = '0.7.0'
 requires-python = '>=3.12'
 
 dependencies = [
@@ -19,6 +19,7 @@ dependencies = [
     "cfgrib",
     "python-dotenv",
     "colorama",
+    "ijson",
 ]
 
 [tool.setuptools]

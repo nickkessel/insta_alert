@@ -50,7 +50,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.6.9'
+    VERSION_NUMBER = '0.7.0'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
@@ -188,27 +188,33 @@ def get_alert_geometry(alert):
     '''
     geometries = []
     print(f"Fetching geometries for {len(affected_zones)} zones...")
-    for zone_url in affected_zones:
-        if zone_url in zone_geometry_cache: # Check cache first to reduce API calls
-            geometries.append(zone_geometry_cache[zone_url])
-            continue
-        
-        try:
-            # Fetch zone data from the NWS API
-            response = requests.get(zone_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"}, timeout=10)
-            response.raise_for_status()
-            zone_geom_data = response.json().get('geometry')
+    max_retries = 3
+    for attempt in range(max_retries):
+        for zone_url in affected_zones:
+            if zone_url in zone_geometry_cache: # Check cache first to reduce API calls
+                geometries.append(zone_geometry_cache[zone_url])
+                continue
             
-            if zone_geom_data:
-                zone_shape = shape(zone_geom_data)
-                geometries.append(zone_shape)
-                if len(zone_geometry_cache) >= MAX_ZONES_IN_CACHE:
-                    # remove a random item (simple approach) or the first item
-                    zone_geometry_cache.pop(next(iter(zone_geometry_cache)))
-                zone_geometry_cache[zone_url] = zone_shape
-        except requests.RequestException as e:
-            print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}" + Fore.RESET)
-            continue
+            try:
+                # Fetch zone data from the NWS API
+                response = requests.get(zone_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"}, timeout=10)
+                response.raise_for_status()
+                zone_geom_data = response.json().get('geometry')
+                
+                if zone_geom_data:
+                    zone_shape = shape(zone_geom_data)
+                    geometries.append(zone_shape)
+                    if len(zone_geometry_cache) >= MAX_ZONES_IN_CACHE:
+                        # remove a random item (simple approach) or the first item
+                        zone_geometry_cache.pop(next(iter(zone_geometry_cache)))
+                    zone_geometry_cache[zone_url] = zone_shape
+            except requests.RequestException as e:
+                print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}. Attempt {attempt}, retrying." + Fore.RESET)
+                if attempt + 1 >= max_retries:
+                    print(Back.RED + f"All download attempts ({max_retries}) failed" + Back.RESET)
+                    continue
+                else:
+                    time.sleep(2)
     if not geometries:
         print(Fore.RED + "Could not retrieve any geometries for the affected zones." + Fore.RESET)
         return None
@@ -331,14 +337,14 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
         us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
-        lakes.plot(ax=ax, linewidth = 1.2, edgecolor="#45a4f3ff", facecolor="#8cc4f1c5", transform = ccrs.PlateCarree(), zorder = 2)
+        lakes.plot(ax=ax, linewidth = 0.4, edgecolor="#000000ff", facecolor="#a5d5fdff", transform = ccrs.PlateCarree(), zorder = 1)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
         fig.set_facecolor(colors['facecolor'])
                    
         # Fit view to geometry
-         # Fit view to geometry's initial bounds
+        # Fit view to geometry's initial bounds
         minx, miny, maxx, maxy = geom.bounds
         
         # Add initial padding
@@ -577,7 +583,11 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         sigWindProb = 'n/a'
         hailProb = 'n/a'
         sigHailProb = 'n/a'
+        #flood stuff
+        rainFallen = 'n/a'
+        additionalRain = 'n/a'
         
+        #watch getting
         watch_attribs, watch_percents = ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']  #default to these
         if alert_type == 'Severe Thunderstorm Watch' or alert_type == 'Tornado Watch':
             description_text = alert['properties'].get('description', '').lower()
@@ -611,6 +621,60 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                         maxHail = float(hail_match.group(1))
                     except ValueError:
                         print('could not parse hail size from description')
+                        
+
+        #handle rain amounts for flood alerts
+        if alert_type in ['Flash Flood Warning', 'Flood Advisory']:
+            # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
+            raw_desc = alert['properties'].get('description', '')
+            description_text = ' '.join(raw_desc.split()).lower()  # safe + robust
+            print(description_text)
+
+            # --- Rain that has already fallen ---
+            fallen_pattern = (
+                r"(?:between\s+([\d.]+)\s+and\s+([\d.]+)"
+                r"|([\d.]+)\s+to\s+([\d.]+)"
+                r"|up to\s+([\d.]+)"
+                r"|([\d.]+))\s+inch(?:es)?\s+of\s+rain\s+have\s+fallen"
+            )
+
+            # --- Additional rain expected / possible ---
+            additional_pattern = (
+                r"additional\s+rainfall\s+amounts\s+(?:of\s+)?"
+                r"(?:up to\s+([\d.]+)"
+                r"|([\d.]+)\s+to\s+([\d.]+)"
+                r"|([\d.]+))\s+inch(?:es)?"
+            )
+
+            fallen_match = re.search(fallen_pattern, description_text, re.IGNORECASE)
+            additional_match = re.search(additional_pattern, description_text, re.IGNORECASE)
+
+            rainFallen = 'n/a'
+            additionalRain = 'n/a'
+
+            if fallen_match:
+                g = fallen_match.groups()
+                if g[0] and g[1]:          # between X and Y
+                    rainFallen = f"{g[0]} - {g[1]}"
+                elif g[2] and g[3]:       # X to Y
+                    rainFallen = f"{g[2]} - {g[3]}"
+                elif g[4]:                # up to X
+                    rainFallen = f"up to {g[4]}"
+                elif g[5]:                # single value
+                    rainFallen = g[5]
+
+            if additional_match:
+                g = additional_match.groups()
+                # groups layout: (up_to, x_to_y_left, x_to_y_right, single)
+                if g[1] and g[2]:        # X to Y
+                    additionalRain = f"{g[1]} - {g[2]}"
+                elif g[0]:               # up to X
+                    additionalRain = f"up to {g[0]}"
+                elif g[3]:               # single value
+                    additionalRain = g[3]
+
+            print("Rain fallen:", rainFallen)
+            print("Additional rain:", additionalRain)
         
         #handle non-convective SPS                
         if alert_type == 'Special Weather Statement' and geom_type == 'zone':
@@ -661,7 +725,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             (windProb, 'Wind Probability', ""),
             (sigWindProb, 'Sig. Wind Probability', ""),
             (hailProb, 'Hail Probability', ""),
-            (sigHailProb, 'Sig. Hail Probability', "")
+            (sigHailProb, 'Sig. Hail Probability', ""),
+            (rainFallen, 'Rain Fallen', "in"),
+            (additionalRain, 'Additional Rain', "in")
         ]
 
         details_text_lines = []
@@ -759,13 +825,18 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
         plt.savefig(output_path, bbox_inches='tight', dpi= 400)
-        if len(impacted_cities) == 0:
+        if not impacted_cities: 
             area_desc = alert['properties'].get('areaDesc', ['n/a'])
-        elif len(impacted_cities) < 4:
-            area_desc = ", ".join(impacted_cities) 
-        elif len(impacted_cities) >= 4:
-            area_desc = ", ".join(impacted_cities[:3]) 
-          #area impacted #DONE: get this from the cities in the polygon, like the top 4 population. if there isnt any, then use the nws locations. 
+        else:
+            # If the list is long, limit it to the top 3 most populous cities
+            cities_to_format = impacted_cities[:3] if len(impacted_cities) >= 4 else impacted_cities
+
+            # Format the list with 'and' before the last item
+            if len(cities_to_format) == 1:
+                area_desc = cities_to_format[0]
+            else:
+                area_desc = f"{', '.join(cities_to_format[:-1])} and {cities_to_format[-1]}"
+        #area impacted #DONE: get this from the cities in the polygon, like the top 4 population. if there isnt any, then use the nws locations. 
         desc = alert['properties'].get('description', ['n/a'])#[7:] #long text, removing the "SVRILN" or "TORILN" thing at the start, except that isnt present on all warnings so i took it out...
         instructions = alert['properties'].get('instruction', ['n/a'])
         if alert_verb == None:
@@ -783,7 +854,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         statement = f'''{alert_type} {alert_verb}, including {area_desc}{punc} This alert is in effect until {formatted_expiry_time}{punc}\n{desc} '''
         if config.USE_TAGS:
             statement += config.DEFAULT_TAGS
-        print(statement)
+        #print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
         print(Fore.LIGHTGREEN_EX + f"Map saved to {output_path} in {elapsed_plot_time:.2f}s. Total script time: {elapsed_total_time:.2f}s" + Fore.RESET)
@@ -797,7 +868,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/detroitfrostadv.json', 'r') as file: 
+    with open('test_alerts/ffw_regex_test.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/simpleborders4', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/ffwregex1', False, 'issued')

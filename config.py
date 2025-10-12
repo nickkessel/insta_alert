@@ -5,19 +5,22 @@ OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning'
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 
 ALERT_TYPES_TO_MONITOR = (
-     'Frost Advisory', 'Dense Fog Advisory', 'Special Weather Statement', 'Freeze Warning'
+    'Flood Watch'
 )
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 #TODO: update these to be UGC codes (with a Z) so like State abbreviation + Z + ### 
 #TODO: actually, I'm not sure if i want to do that, need more looking into. how did it get any cincy alerts if these had C's,
 # and the affected zones got in main.py had Z's?
-CINCY_ZONES = [ #clermont, brown, adams, highland, hamilton, warren, butler, clinton, franklin IN, dearborn IN, ohio IN, boone ky, kenton ky, campbell ky
+OLD_CINCY_ZONES = [ #clermont, brown, adams, highland, hamilton, warren, butler, clinton, franklin IN, dearborn IN, ohio IN, boone ky, kenton ky, campbell ky
   'OHC025', 'OHC015', 'OHC001', 'OHC071', 'OHC061', 'OHC165', 'OHC017', 'OHC027', 'INC047', 'INC029', 'INC115', 'KYC015', 'KYC117', 'KYC037']
 OLD_MMWX_ZONES = [#probably don't use - see the todos above #IN A TO Z order kalamazoo, calhoun, jackson, washtenaw, oakland, livingston, ingham, eaton, barry, allegan, ottawa, kent, ionia, clinton, shiawassee, genesse, lapeer, saginaw, gratiot, montcalm, newaygo, muskegon, mecosta, isabella, midland, bay, gladwin, clare, osceola, lake zones
   "MIC005", "MIC015", "MIC025", "MIC037", "MIC045", "MIC049", "MIC051", "MIC057", "MIC065", "MIC067", "MIC073", "MIC075", "MIC081", "MIC111", "MIC117", "MIC121", "MIC123", "MIC125", "MIC139", "MIC143", "MIC155", "MIC161", 'LMZ845', 'LMZ846', 'LMZ847', 'LMZ876', 'LMZ874', 'LMZ872', 'LHZ422', 'LHZ421'
 ]
 
+CINCY_ZONES = [
+  'OHZ078', 'OHZ079', 'OHZ079', 'OHZ080', 'OHZ077', 'OHZ071', 'OHZ070', 'OHZ072', 'INZ066', 'INZ074', 'INZ075', 'KY091', 'KY092', 'KY093'
+]
 MMWX_ZONES = [
   'MIZ039', 'MIZ040', 'MIZ041', 'MIZ044', 'MIZ045', 'MIZ046', 'MIZ047', 'MIZ048', 'MIZ057', 'MIZ051', 'MIZ052', 'MIZ053', 'MIZ050', 'MIZ056', 'MIZ058', 'MIZ059', 'MIZ060', 'MIZ061', 'MIZ062', 'MIZ064', 'MIZ065', 'MIZ066', 'MIZ067', 'MIZ068', 'MIZ069', 'MIZ072', 'MIZ073', 'MIZ074', 'MIZ075','LMZ845', 'LMZ846', 'LMZ847', 'LMZ876', 'LMZ874', 'LMZ872', 'LHZ422', 'LHZ421'
 ]

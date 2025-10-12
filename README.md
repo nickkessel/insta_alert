@@ -1,5 +1,5 @@
 # warnings_on_fb 
-*7,286 (and counting) alerts generated*
+*11,402 (and counting) alerts generated*
 
 ---
 ## What it does:
@@ -7,7 +7,7 @@
 2. Generates a polygon from the alert geometry
 3. Uses open-source GIS tools to add in US highways, interstates, county/state borders, and city names onto the selected map area. 
 4. Polls the NCEP MRMS server (unless a recent cached scan is available) and downloads the latest reflectivity (default) or 1hr-QPE (FFW, FFA) data, and overlays that onto the map, for better context. 
-5. After the graphic is generated, it can go to any number of end users. Currently supported are sending to a Facebook page and/or Discord server. Also included in the download is the `slideshow.py` file, which uses `pygame` to create an auto-updating slideshow with all active alerts.
+5. After the graphic is generated, it can go to any number of end users. Currently supported are sending to a Facebook page and/or Discord server. Instagram posting is possible, but not available at-scale/for more than a metro-area or two worth of alerts. Also included in the download is the `slideshow.py` file, which uses `pygame` to create an auto-updating slideshow with all active alerts.
 
 ## Supported Alerts:
 - Tornado Warning
@@ -17,21 +17,23 @@
 - Flood Advisory
 - Special Marine Warning
 - Dust Storm Warning
+- Frost Advisory
+- Dense Fog Advisory
+- Freeze Warning
 - Tornado Watch
 - Severe Thunderstorm Watch
 - Flood Watch
 - Flash Flood Watch
 ## Supported Areas:
 - Complete support of CONUS
-- Complete support of Puerto Rico
-- Partial support of Alaska
-    - Known issues with plotting alerts issued for the Aleutians/near the International Date Line
-    - Mainland AK seems fine, may need to adjust the Alaska cities dataset to include all locations with pop > 50, rather than pop > 500, for everywhere else.
+- Complete support of Alaska
+    - Uses cities dataset w/ smaller cutoff for greater usability
+- Near-complete support of Puerto Rico (no roads available to plot)
 - Partial support of Hawaii
     - No known issues, but more testing is needed
-- Low support of Guam
+- No support of Guam
     - No dataset for Guam cities
-    - Can handle plotting Guam alerts
+    - Issues with plotting MRMS data on Guam domain
 ## Tools Used:
 ```python
  metpy, matplotlib, shapely, cartopy, geopandas, datetime, time, timezonefinder,
