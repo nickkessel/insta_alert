@@ -80,7 +80,7 @@ qpe_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops2)
 #inches, (R G B)
 stops3 = [ #QPE colorscale 0-4"
     (0.0,  (0, 0, 0, 0)),         
-    (0.01, (68, 166, 255, 120)),
+    (0.05, (68, 166, 255, 100)),
     (0.1,    (155, 255, 155, 255)),
     (0.5,    (0, 200, 0, 255)),
     (1.0,    (255, 255, 0, 255)),
@@ -429,10 +429,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -160,
-        "lon_max": -140,
-        "lat_min": 57,
-        "lat_max": 64
+        "lon_min": -76,
+        "lon_max": -66,
+        "lat_min": 40,
+        "lat_max": 45
     }
 
-    save_mrms_subset(test_bbox, "Flash Flood Warnindg", True)
+    save_mrms_subset(test_bbox, "Flash Flood Warning", True)

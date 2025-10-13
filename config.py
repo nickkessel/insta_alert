@@ -1,7 +1,7 @@
 # --- API POLLING SETTINGS ---
 # Define categories for alert types
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
-OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning', 'Dense Fog Advisory', 'Freeze Warning']
+OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning', 'Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 
 ALERT_TYPES_TO_MONITOR = (

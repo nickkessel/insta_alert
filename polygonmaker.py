@@ -52,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.1'
+    VERSION_NUMBER = '0.7.2'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
@@ -634,50 +634,60 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         if alert_type in ['Flash Flood Warning', 'Flood Advisory']:
             # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
             raw_desc = alert['properties'].get('description', '')
-            description_text = ' '.join(raw_desc.split()).lower()  # safe + robust
-            #print(description_text)
+            description_text = ' '.join(raw_desc.split()).lower()
 
             # --- Rain that has already fallen ---
             fallen_pattern = (
-                r"(?:between\s+([\d.]+)\s+and\s+([\d.]+)"
-                r"|([\d.]+)\s+to\s+([\d.]+)"
-                r"|up to\s+([\d.]+)"
-                r"|([\d.]+))\s+inch(?:es)?\s+of\s+rain\s+have\s+fallen"
+                r"(?i)"
+                r"(?:"
+                    r"between\s+([\d.]+)\s*(?:and|to|-)\s*([\d.]+)"  # between X and Y
+                    r"|([\d.]+)\s*to\s*([\d.]+)"                     # X to Y
+                    r"|up\s*to\s*([\d.]+)"                           # up to X
+                    r"|([\d.]+)"                                     # single value
+                r")"
+                r"\s*inch(?:es)?(?:\s+of\s+rain)?"
+                r"(?:[^.]{0,80})?"                                  # allow filler before "have fallen"
+                r"\bhave\s+fallen"                                  # anchor
             )
 
             # --- Additional rain expected / possible ---
             additional_pattern = (
+                r"(?i)"
                 r"additional\s+rainfall\s+amounts\s+(?:of\s+)?"
-                r"(?:up to\s+([\d.]+)"
-                r"|([\d.]+)\s+to\s+([\d.]+)"
-                r"|([\d.]+))\s+inch(?:es)?"
+                r"(?:"
+                    r"up\s*to\s*([\d.]+)"                            # up to X
+                    r"|([\d.]+)\s*(?:to|and|-)\s*([\d.]+)"           # X to Y
+                    r"|([\d.]+)"                                     # single value
+                r")"
+                r"\s*inch(?:es)?(?:[^.]{0,60})?(?:\s+(?:are|is|remain|will\s+be|could\s+be)\s+\w+)?"  # filler
             )
 
-            fallen_match = re.search(fallen_pattern, description_text, re.IGNORECASE)
-            additional_match = re.search(additional_pattern, description_text, re.IGNORECASE)
+            fallen_match = re.search(fallen_pattern, description_text)
+            additional_match = re.search(additional_pattern, description_text)
 
             rainFallen = 'n/a'
             additionalRain = 'n/a'
 
             if fallen_match:
                 g = fallen_match.groups()
-                if g[0] and g[1]:          # between X and Y
+                # groups: (between1, between2, to1, to2, up_to, single)
+                if g[0] and g[1]:
                     rainFallen = f"{g[0]} - {g[1]}"
-                elif g[2] and g[3]:       # X to Y
+                elif g[2] and g[3]:
                     rainFallen = f"{g[2]} - {g[3]}"
-                elif g[4]:                # up to X
+                elif g[4]:
                     rainFallen = f"up to {g[4]}"
-                elif g[5]:                # single value
+                elif g[5]:
                     rainFallen = g[5]
 
             if additional_match:
                 g = additional_match.groups()
-                # groups layout: (up_to, x_to_y_left, x_to_y_right, single)
-                if g[1] and g[2]:        # X to Y
+                # groups: (up_to, between1, between2, single)
+                if g[1] and g[2]:
                     additionalRain = f"{g[1]} - {g[2]}"
-                elif g[0]:               # up to X
+                elif g[0]:
                     additionalRain = f"up to {g[0]}"
-                elif g[3]:               # single value
+                elif g[3]:
                     additionalRain = g[3]
 
             print("Rain fallen:", rainFallen)
