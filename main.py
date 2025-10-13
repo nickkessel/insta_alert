@@ -17,6 +17,7 @@ import threading #slideshow
 import queue #slideshow
 import config
 from post_to_ig import  make_instagram_post, instagram_login
+from error_handler import report_error
 import ijson
 import gzip
 load_dotenv()
@@ -379,7 +380,12 @@ def main():
                     if event_type in no_mrms_list:
                         plot_mrms = False
                     
-                    path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
+                    try:
+                        path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
+                    except Exception as e:
+                        report_error(e, context=f"Plotting {event_type} alert")
+                        time.sleep(15)
+                        continue
 
                     # --- If slideshow is enabled, send it the new alert info ---
                     if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:
@@ -410,6 +416,11 @@ for folder in required_folders:
     os.makedirs(folder, exist_ok= True)
 
 if __name__ == "__main__":
-    if config.POST_TO_INSTAGRAM_GRID or config.POST_TO_INSTAGRAM_STORY: #if we are doing any instagramming at all
-        ig_client = instagram_login(os.getenv("IG_USER"), os.getenv("IG_PASS"))
-    main()
+    try:
+        if config.POST_TO_INSTAGRAM_GRID or config.POST_TO_INSTAGRAM_STORY:
+            ig_client = instagram_login(os.getenv("IG_USER"), os.getenv("IG_PASS"))
+        main()
+    except Exception as e:
+        print(Back.RED + f"Fatal error: {e}" + Back.RESET)
+        report_error(e, context="Top-level main()")
+        raise  # optional — keeps the crash visible in logs

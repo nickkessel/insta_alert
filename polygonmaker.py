@@ -1,6 +1,7 @@
 #using this as like a test thing
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 from shapely.geometry import shape, Point
 import pandas as pd
 from datetime import datetime
@@ -39,6 +40,7 @@ import importlib.metadata
 #TODO: maybe: add some sort of filter or something to show cities w/ less population when its a super sparse area (like ND)
 ''' 
 ZORDER STACK
+-1 - ocean, lakes fill
 0 - polygon fill
 1 - radar imagery
 2 - county/state borders
@@ -50,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.0'
+    VERSION_NUMBER = '0.7.1'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
@@ -142,7 +144,7 @@ conus_cities_ds = pd.read_csv('gis/cities_100_lite.csv')
 ak_cities_ds = pd.read_csv('gis/ak_cities.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
-logo_path= 'testlogo1.png'
+logo_path= 'logo2.png'
 logo = mpimg.imread(logo_path)
 
 print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + Back.RESET)
@@ -150,9 +152,13 @@ print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + 
 counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties')
 states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
 
-lakes = gpd.read_file("gis/lakes/ne_10m_lakes_north_america.shp")
+print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading water features.' + Back.RESET)
 
-print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading roads.' + Back.RESET)
+lakes4km = gpd.read_file("gis/water/lakes_4km_compressed.fgb")
+lakes15km = gpd.read_file('gis/water/lakes_15km_compressed.fgb')
+oceans = gpd.read_file("gis/water/water_background.fgb")
+
+print(Back.LIGHTWHITE_EX + 'Water features loaded. Loading roads.' + Back.RESET)
 interstates = gpd.read_file("gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
 us_highways = gpd.read_file('gis/all_us_highways_10tol.fgb') #us highways for conus and state highways for ak/hi. dataset does not have us/state highways equivalents for PR...
 
@@ -333,11 +339,9 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 
         counties_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='#9e9e9e', facecolor='none', linewidth=0.75, zorder=2) 
         states_gdf.plot(ax=ax, transform=ccrs.PlateCarree(), edgecolor='black', facecolor='none', linewidth=1.5, zorder=2)
-        #ax.add_feature(cfeature.STATES.with_scale('10m'), linewidth = 1.5, zorder = 2)
-        #ax.add_feature(USCOUNTIES.with_scale('5m'), linewidth = 0.5, edgecolor = "#9e9e9e", zorder = 2)
         us_highways.plot(ax=ax, linewidth= 0.5, edgecolor= 'red', transform = ccrs.PlateCarree(), zorder = 4)
         interstates.plot(ax=ax, linewidth = 1, edgecolor='blue', transform = ccrs.PlateCarree(), zorder = 4)
-        lakes.plot(ax=ax, linewidth = 0.4, edgecolor="#000000ff", facecolor="#a5d5fdff", transform = ccrs.PlateCarree(), zorder = 1)
+        oceans.plot(ax=ax, linewidth = 0, edgecolor="#000000ff", facecolor="#66baffff", transform = ccrs.PlateCarree(), zorder = -1)
         
         #simplified
         colors = ALERT_COLORS.get(alert_type, ALERT_COLORS['default'])
@@ -393,8 +397,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         final_maxy = min(clamped_maxy, 90.0)
         
         map_region = [final_minx, final_maxx, final_miny, final_maxy]
-        #print(map_region)
-        #print(map_region)
+
         map_region2 = { # For the MRMS stuff, pad it a little bit to not have blank space at the edges
             "lon_min": final_minx - 0.01,
             "lon_max": final_maxx + 0.01,
@@ -474,6 +477,11 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         impacted_cities = [] #to include in the caption
         alert_height = final_maxy - final_miny #how big is the box? 'normal' alert heights: seems like up to .9-1?(degree) Anything bigger than that gets a little cluttered
         print(f'alert height: {alert_height} degs') 
+        #plotting lakes down here after we know the alert height
+        if alert_height > 1.5: #might need tweaking, but should basically mean big alerts like watches and the like plot fewer lakes
+            lakes15km.plot(ax=ax, linewidth = 0.4, edgecolor="#000000ff", facecolor="#a5d5fdff", transform = ccrs.PlateCarree(), zorder = -1)
+        else:
+            lakes4km.plot(ax=ax, linewidth = 0.4, edgecolor="#000000ff", facecolor="#a5d5fdff", transform = ccrs.PlateCarree(), zorder = -1)
 
         min_distance_deg = alert_height/9 #8 or 9 or 10 seems to work well. lower if the map seems too cluttered
         for _, city in visible_cities_df.iterrows():
@@ -622,13 +630,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                     except ValueError:
                         print('could not parse hail size from description')
                         
-
         #handle rain amounts for flood alerts
         if alert_type in ['Flash Flood Warning', 'Flood Advisory']:
             # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
             raw_desc = alert['properties'].get('description', '')
             description_text = ' '.join(raw_desc.split()).lower()  # safe + robust
-            print(description_text)
+            #print(description_text)
 
             # --- Rain that has already fallen ---
             fallen_pattern = (
@@ -810,10 +817,10 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             )
         
         #add watermark
-        imagebox = OffsetImage(logo, zoom = 0.15, alpha = 0.9)
+        imagebox = OffsetImage(logo, zoom = 0.08, alpha = 1.0)
         ab = AnnotationBbox(
             imagebox,
-            xy=(0.98, 0.02),
+            xy=(0.97, 0.02),
             xycoords= 'axes fraction',
             frameon=False,
             box_alignment=(1,0),
@@ -868,7 +875,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/ffw_regex_test.json', 'r') as file: 
+    with open('test_alerts/lakes_test.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/ffwregex1', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/lakes15km', False, 'issued')

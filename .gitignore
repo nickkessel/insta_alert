@@ -36,9 +36,7 @@ dist/
 /counties2
 /api_scrape.py
 /counties5m
-/gis_preprocess.py
-/roads_preprocess.py
-/cities_preprocess.py
+/*_preprocess.py
 /counties500k
 /bigdomain.py
 /uscities.csv 
