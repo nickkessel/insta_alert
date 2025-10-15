@@ -52,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.2'
+    VERSION_NUMBER = '0.7.3'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
@@ -124,6 +124,11 @@ ALERT_COLORS = {
     'Frost Advisory': {
         'facecolor': "#73A0F3",
         'edgecolor': "#437DEA",
+        'fillalpha': '50'
+    },
+    'Winter Storm Warning': {
+        'facecolor': "#FF69B4",
+        'edgecolor': "#FF69B4",
         'fillalpha': '50'
     },
     "default": {
@@ -635,6 +640,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
             raw_desc = alert['properties'].get('description', '')
             description_text = ' '.join(raw_desc.split()).lower()
+            print(description_text)
 
             # --- Rain that has already fallen ---
             fallen_pattern = (
@@ -647,7 +653,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 r")"
                 r"\s*inch(?:es)?(?:\s+of\s+rain)?"
                 r"(?:[^.]{0,80})?"                                  # allow filler before "have fallen"
-                r"\bhave\s+fallen"                                  # anchor
+                r"\b(?:have|has)\s+fallen"                                  # anchor
             )
 
             # --- Additional rain expected / possible ---
@@ -690,7 +696,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 elif g[3]:
                     additionalRain = g[3]
 
-            print("Rain fallen:", rainFallen)
+            print("Accumulated Rainfall:", rainFallen)
             print("Additional rain:", additionalRain)
         
         #handle non-convective SPS                
@@ -743,13 +749,13 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             (sigWindProb, 'Sig. Wind Probability', ""),
             (hailProb, 'Hail Probability', ""),
             (sigHailProb, 'Sig. Hail Probability', ""),
-            (rainFallen, 'Rain Fallen', "in"),
+            (rainFallen, 'Accumulated Rainfall', "in"),
             (additionalRain, 'Additional Rain', "in")
         ]
 
         details_text_lines = []
         for value, label, suffix in hazard_details:
-            if value != "n/a" and value != 'n/a - n/a': #second one is for the watch probs if there aren't any
+            if value != "n/a" and value != 'n/a - n/a' and value != '0.00': #second one is for the watch probs if there aren't any #third is for hail
                 # Escape any spaces in the value for LaTeX rendering
                 escaped_value = str(value).replace(" ", r"\ ")
                 
@@ -864,7 +870,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 desc = desc + '\n' + instructions # Adds instructions for SPS/SMW. Sort of useful? Not all SMW include wind/hail params so hazard box doesnt always show.
         
         #use exclamation marks or just a period:
-        if alert_type == 'Tornado Warning' or alert_type == 'Severe Thunderstorm Warning' or alert_type == 'Flash Flood Warning' or alert_type == 'Special Marine Warning':
+        if alert_type in ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning', 'Special Marine Warning']:
             punc = "!"
         else: 
             punc = "."
@@ -885,7 +891,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/lakes_test.json', 'r') as file: 
+    with open('test_alerts/svr-thatisaref.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/lakes15km', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/hailnone', False, 'issued')

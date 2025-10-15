@@ -1,11 +1,12 @@
 # --- API POLLING SETTINGS ---
 # Define categories for alert types
 SEVERE = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Flash Flood Warning']
-OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning', 'Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory']
+OTHER = ['Special Weather Statement', 'Flood Advisory', 'Special Marine Warning', 'Dust Storm Warning', 'Dense Fog Advisory']
+WINTER = ['Winter Storm Warning', 'Frost Advisory', 'Freeze Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 
 ALERT_TYPES_TO_MONITOR = (
-    WATCHES + SEVERE + OTHER
+    WINTER
 )
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.

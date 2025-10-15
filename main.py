@@ -27,7 +27,6 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
-#DONE: figure out why it is so slow when you first start running the script
 #TODO: rename project at some point
 FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
 FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
@@ -38,6 +37,11 @@ warning_types = config.ALERT_TYPES_TO_MONITOR
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
+
+#handle convective watches
+delayed_watches = []
+queued_watch_ids = set()
+WATCH_DELAY_TIME = 300 #seconds
 
 required_folders = ['graphics']
 
