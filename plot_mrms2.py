@@ -257,7 +257,7 @@ def get_mrms_data_async(bbox, type, region):
         convert_units = True
         cmap_to_use = qpe2_cmap
         data_min, data_max = min_val3, max_val3
-        cbar_label = "Radar Estimated Precipitation (1h)"
+        cbar_label = "Radar Estimated Precipitation (1h) (in)"
     else:
         url = ref_url
         convert_units = False

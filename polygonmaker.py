@@ -52,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.3'
+    VERSION_NUMBER = '0.7.4'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 ALERT_COLORS = {
@@ -635,7 +635,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                     except ValueError:
                         print('could not parse hail size from description')
                         
-        #handle rain amounts for flood alerts
+        #handle flood related things, so rain amts and mudslides
         if alert_type in ['Flash Flood Warning', 'Flood Advisory']:
             # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
             raw_desc = alert['properties'].get('description', '')
@@ -667,12 +667,18 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 r")"
                 r"\s*inch(?:es)?(?:[^.]{0,60})?(?:\s+(?:are|is|remain|will\s+be|could\s+be)\s+\w+)?"  # filler
             )
+            
+            mudslide_pattern = (
+                r"(mudslide)|(a mudslide)"
+            )
 
             fallen_match = re.search(fallen_pattern, description_text)
             additional_match = re.search(additional_pattern, description_text)
+            mudslide_match = re.search(mudslide_pattern, description_text)
 
             rainFallen = 'n/a'
             additionalRain = 'n/a'
+            additionalHazard = 'n/a'
 
             if fallen_match:
                 g = fallen_match.groups()
@@ -695,6 +701,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                     additionalRain = f"up to {g[0]}"
                 elif g[3]:
                     additionalRain = g[3]
+            
+            if mudslide_match:
+                g = mudslide_match.groups()
+                print(mudslide_match.groups())
+                additionalHazard = 'Mudslide'
+
 
             print("Accumulated Rainfall:", rainFallen)
             print("Additional rain:", additionalRain)
@@ -742,7 +754,6 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             (fireWeatherThreat, 'Risk of Fire Weather', ""),
             (denseFogThreat, 'Fog Development', ""),
             (iceThreat, 'Icy Conditions', ""),
-            (additionalHazard, 'Additional Hazards', ""),
             (torProb, 'Tornado Probability', ""),
             (sigTorProb, 'Sig. Tornado Probability', ""),
             (windProb, 'Wind Probability', ""),
@@ -750,7 +761,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             (hailProb, 'Hail Probability', ""),
             (sigHailProb, 'Sig. Hail Probability', ""),
             (rainFallen, 'Accumulated Rainfall', "in"),
-            (additionalRain, 'Additional Rain', "in")
+            (additionalRain, 'Additional Rain', "in"),
+            (additionalHazard, 'Additional Hazards', "")
         ]
 
         details_text_lines = []
@@ -891,7 +903,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/svr-thatisaref.json', 'r') as file: 
+    with open('test_alerts/ffw_regex_test.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/hailnone', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/mudslide', True, 'issued')

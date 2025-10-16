@@ -12,11 +12,12 @@ from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
-from discord_webhook import DiscordWebhook, DiscordEmbed
 import threading #slideshow
 import queue #slideshow
 import config
-from post_to_ig import  make_instagram_post, instagram_login
+from integrations.instagram import  make_instagram_post, instagram_login
+from integrations.discord import log_to_discord
+from integrations.facebook import post_to_facebook
 from error_handler import report_error
 import ijson
 import gzip
@@ -28,8 +29,7 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
 #TODO: rename project at some point
-FACEBOOK_PAGE_ACCESS_TOKEN = os.getenv("FACEBOOK_PAGE_ACCESS_TOKEN")
-FACEBOOK_PAGE_ID = os.getenv("FACEBOOK_PAGE_ID")
+
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
 IS_TESTING = False # Set to True to use local files, False to run normally
 
@@ -41,7 +41,7 @@ start_time = time.time()
 #handle convective watches
 delayed_watches = []
 queued_watch_ids = set()
-WATCH_DELAY_TIME = 300 #seconds
+WATCH_DELAY_TIME = 400 #seconds
 
 required_folders = ['graphics']
 
@@ -105,62 +105,8 @@ def get_nws_alerts():
         print(f'An error occurred during JSON stream processing: {e}')
         return []
 
-def log_to_discord(message, img_path):
-    webhook = DiscordWebhook(url=config.WEBHOOKS[0], content=message)
-    with open(img_path, 'rb') as f:
-        webhook.add_file(file=f.read(), filename='Alert.png')
-    try:
-        print(Fore.GREEN + "Sent to Discord webhook successfully!" + Fore.RESET)
-        response = webhook.execute()
-    except Exception as e:
-        print(Fore.RED + f"Error sending to webhook! {e}" + Fore.RESET)
-
-def post_to_facebook(message, img_path): #message is string & img is https url reference to .jpg or .png
-    if not img_path:
-        print('no image path provided')
-        return
-    photo_upload_url = f"https://graph.facebook.com/{FACEBOOK_PAGE_ID}/photos"
-    photo_payload = {
-        "published": "false",
-        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
-    }
-
-    try:
-        with open(img_path, 'rb') as image_file:
-            files = {'source': image_file}
-            photo_response = requests.post(photo_upload_url, data = photo_payload, files = files)
-
-        photo_response.raise_for_status()
-        photo_id = photo_response.json()['id']
-        print(Fore.GREEN + "Uploaded Image successfully" + Fore.RESET)
-
-    except requests.RequestException as e:
-        print(Fore.RED + f"Error uploading image: {e}" + Fore.RESET)
-        print(Fore.RED + f"Response: {e.response.text}" + Fore.RESET) # More detailed error
-        return
-    except FileNotFoundError:
-        print(Fore.RED + f"Error: Could not find image file at {img_path}" + Fore.RESET)
-        return
-
-        # create the post using the uploaded photo ID
-    post_url = f"https://graph.facebook.com/{FACEBOOK_PAGE_ID}/feed"
-    post_payload = {
-        "message": message,
-        "attached_media[0]": json.dumps({"media_fbid": photo_id}),
-        "access_token": FACEBOOK_PAGE_ACCESS_TOKEN,
-    }
-
-    try:
-        post_response = requests.post(post_url, data=post_payload)
-        post_response.raise_for_status()
-        print(Fore.GREEN + "Posted to Facebook successfully" + Fore.RESET)
-    except requests.RequestException as e:
-        print(Fore.RED + f"Error creating post: {e}" + Fore.RESET)
-        print(Fore.RED + f"Response: {e.response.text}" + Fore.RESET)
-
 def clean_filename(name):
     return re.sub(r'[<>:"/\\|?*.]', '', name)
-
 
 def are_alerts_different(new_alert, ref_alert):
     """
@@ -298,20 +244,37 @@ def main():
         slideshow_thread.start()
         print(Fore.MAGENTA + "Slideshow thread started." + Fore.RESET)
 
-   
     while True:
         print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
+        
+        ready_watches = [] 
+        watches_still_waiting = []
+        
+        current_time = time.time()
+        for add_time, watch_alert in delayed_watches:
+            if current_time - add_time >= WATCH_DELAY_TIME: #if a watch has been in the queue long enough
+                alert_id = watch_alert['properties']['id']
+                print(Fore.GREEN + f'Watch {alert_id} is done in queue, trying to generate graphics w/ attributes now.' + Fore.RESET)
+                ready_watches.append(watch_alert)
+                queued_watch_ids.discard(alert_id)
+            else:
+                watches_still_waiting.append((add_time, watch_alert))
+        delayed_watches[:] = watches_still_waiting
+        
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET + Fore.RESET)
             # in test mode, load the UPGRADED alert
-            with open('test_alerts/svr-witharef.json', 'r') as f:
+            with open('test_alerts/tstmwatch.json', 'r') as f:
                 loaded_alert = json.load(f)
                 alerts_stack = [loaded_alert]
+                print('loaded test alert')
         else:
             # in normal mode, fetch live alerts
             alerts_stack = get_nws_alerts()
-        #print(alerts_stack)
+        if ready_watches:
+            alerts_stack.extend(ready_watches) #different from append() because it adds each element of the iterable provided as its own element rather than just as one big single element
+        
         for alert in alerts_stack:
             #get info about the alert
             properties = alert.get("properties", {})
@@ -319,6 +282,14 @@ def main():
             event_type = properties.get("event")
             clickable_alert_id = properties.get("@id") #with https, etc so u can click in terminal
             alert_id = properties.get("id") #just the id
+            
+            #intercept watches to add to the queue so they don't get posted w/o tags
+            if event_type in ['Tornado Watch', 'Severe Thunderstorm Watch'] and alert_id not in posted_alerts and alert_id not in queued_watch_ids:
+                print('appending watch to seperate queue ')
+                delayed_watches.append((time.time(), alert))
+                queued_watch_ids.add(alert_id)
+                continue  #skip the rest of the processing  
+            
             expiry_time_iso = properties.get("expires") # <-- Added for slideshow
             clean_alert_id = clean_filename(alert_id) #id minus speciasl chars so it can be saved
             maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer

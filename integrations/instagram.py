@@ -7,7 +7,6 @@ import config
 import json
 load_dotenv()
 
-
 SESSION_FILE = "session.json"
 
 def instagram_login(username, password):
