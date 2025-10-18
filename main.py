@@ -18,6 +18,7 @@ import config
 from integrations.instagram import  make_instagram_post, instagram_login
 from integrations.discord import log_to_discord
 from integrations.facebook import post_to_facebook
+from gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
 from error_handler import report_error
 import ijson
 import gzip
@@ -41,7 +42,7 @@ start_time = time.time()
 #handle convective watches
 delayed_watches = []
 queued_watch_ids = set()
-WATCH_DELAY_TIME = 400 #seconds
+WATCH_DELAY_TIME = 800 #seconds, should not take this long for watchCanBePlotted to come true, so if this qualifier hits, its a fallback as we don't want to wait much longer to post the watch
 
 required_folders = ['graphics']
 
@@ -252,7 +253,16 @@ def main():
         
         current_time = time.time()
         for add_time, watch_alert in delayed_watches:
-            if current_time - add_time >= WATCH_DELAY_TIME: #if a watch has been in the queue long enough
+            watch_desc = watch_alert['properties'].get('description', '').lower()
+            watch_id = get_watch_number(watch_desc)
+            if watch_id:
+                has_attribs, _, _ = get_watch_attributes(watch_id) #can ignore the actual values, we just care abt if there are attributes
+                if has_attribs:
+                    watchCanBePlotted = True
+                else:
+                    watchCanBePlotted = False
+            
+            if (current_time - add_time >= WATCH_DELAY_TIME) or watchCanBePlotted: #if a watch has been in the queue long enough or if has_attribs is true.
                 alert_id = watch_alert['properties']['id']
                 print(Fore.GREEN + f'Watch {alert_id} is done in queue, trying to generate graphics w/ attributes now.' + Fore.RESET)
                 ready_watches.append(watch_alert)

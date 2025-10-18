@@ -21,7 +21,9 @@ from timezonefinderL import TimezoneFinder
 import gc
 import json
 import config
-from bs4 import BeautifulSoup
+from config import ALERT_COLORS
+from gfx_tools.details_box import get_hazard_details
+from gfx_tools.get_alert_geometry import get_alert_geometry
 import importlib.metadata
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
@@ -52,95 +54,12 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.4'
+    VERSION_NUMBER = '0.7.5'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
-ALERT_COLORS = {
-    "Severe Thunderstorm Warning": {
-        "facecolor": "#ffff00", # yellow
-        "edgecolor": "#efef00", # darker yellow for border
-        "fillalpha": "50"
-    },
-    "Tornado Warning": {
-        "facecolor": "#ff0000", # red
-        "edgecolor": "#cc0000", # darker red
-        "fillalpha": "50"
-    },
-    "Flash Flood Warning": {
-        "facecolor": "#02de02", # green
-        "edgecolor": "#00dc00", # darker green
-        "fillalpha": "50"
-    },
-    "Special Weather Statement": {
-        "facecolor": "#ff943d", # orange
-        "edgecolor": "#e07b24", # darker orange
-        "fillalpha": "50"
-    },
-    "Special Marine Warning": {
-        "facecolor": "#00E4DD", # teal
-        "edgecolor": "#00cdc6", # darker teal
-        "fillalpha": "50"
-    },
-    "Dust Storm Warning": {
-        "facecolor": "#FFE4C4",
-        "edgecolor": "#968672",
-        "fillalpha": "50"
-    },
-    'Flood Advisory': {
-        'facecolor': '#00ff7f',
-        'edgecolor': "#00d168",
-        'fillalpha': '50'
-    },
-    'Severe Thunderstorm Watch': {
-        'facecolor': "#DB7093", #pink because i hate nick
-        'edgecolor': "#8f4a61",
-        'fillalpha': '50'
-    },
-    'Tornado Watch': {
-        'facecolor': "#FFFF00", #also yellow because i hate nick
-        'edgecolor': "#b8b800",
-        'fillalpha': '50'
-    },
-    'Flood Watch': {
-        'facecolor': "#2E8B57",
-        'edgecolor': "#168445",
-        'fillalpha': '50'
-    },
-    'Flash Flood Watch': {
-        'facecolor': "#2E8B57",
-        'edgecolor': "#168445",
-        'fillalpha': '50'
-    },
-    'Dense Fog Advisory': {
-        'facecolor': "#708090",
-        'edgecolor': "#565F68",
-        'fillalpha': '50'
-    },
-    'Freeze Warning': {
-        'facecolor': "#5E54A5",
-        'edgecolor': "#483D8B",
-        'fillalpha': '50'
-    },
-    'Frost Advisory': {
-        'facecolor': "#73A0F3",
-        'edgecolor': "#437DEA",
-        'fillalpha': '50'
-    },
-    'Winter Storm Warning': {
-        'facecolor': "#FF69B4",
-        'edgecolor': "#FF69B4",
-        'fillalpha': '50'
-    },
-    "default": {
-        "facecolor": "#b7b7b7", # grey
-        "edgecolor": "#414141", # dark grey
-        "fillalpha": "50"
-    }
-}
+
 
 start_time = time.time()
-zone_geometry_cache = {}
-MAX_ZONES_IN_CACHE = 200
 tf = TimezoneFinder()
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
@@ -170,73 +89,6 @@ us_highways = gpd.read_file('gis/all_us_highways_10tol.fgb') #us highways for co
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
 
-
-def get_alert_geometry(alert):
-    """
-    Determines the geometry for an alert. 
-    If the alert has a direct geometry, it uses that.
-    If not, it fetches and combines geometries from the affected zones.
-    """
-    # Check for a direct polygon geometry first
-    geometry_data = alert.get("geometry")
-    if geometry_data:
-        print("Processing polygon-based alert.")
-        #print(shape(geometry_data))
-        return shape(geometry_data), 'polygon'
-
-    # If no direct geometry, process as a zone-based alert (e.g., a Watch)
-    print("Processing zone-based alert (geometry is null).")
-    affected_zones = alert['properties'].get('affectedZones', [])
-    if not affected_zones:
-        print(Fore.YELLOW + "Alert has no geometry and no affected zones." + Fore.RESET)
-        return None, None
-    
-    alert_type = alert['properties'].get("event")
-    '''
-    if issuing_state == 'AK' and alert_type == 'Special Weather Statement':
-        print('not plotting due to known errors with Alaska zone-based SPS.')
-        return None, None
-    '''
-    geometries = []
-    print(f"Fetching geometries for {len(affected_zones)} zones...")
-    max_retries = 3
-    for attempt in range(max_retries):
-        for zone_url in affected_zones:
-            if zone_url in zone_geometry_cache: # Check cache first to reduce API calls
-                geometries.append(zone_geometry_cache[zone_url])
-                continue
-            
-            try:
-                # Fetch zone data from the NWS API
-                response = requests.get(zone_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"}, timeout=10)
-                response.raise_for_status()
-                zone_geom_data = response.json().get('geometry')
-                
-                if zone_geom_data:
-                    zone_shape = shape(zone_geom_data)
-                    geometries.append(zone_shape)
-                    if len(zone_geometry_cache) >= MAX_ZONES_IN_CACHE:
-                        # remove a random item (simple approach) or the first item
-                        zone_geometry_cache.pop(next(iter(zone_geometry_cache)))
-                    zone_geometry_cache[zone_url] = zone_shape
-            except requests.RequestException as e:
-                print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}. Attempt {attempt}, retrying." + Fore.RESET)
-                if attempt + 1 >= max_retries:
-                    print(Back.RED + f"All download attempts ({max_retries}) failed" + Back.RESET)
-                    continue
-                else:
-                    time.sleep(2)
-    if not geometries:
-        print(Fore.RED + "Could not retrieve any geometries for the affected zones." + Fore.RESET)
-        return None
-
-    # Combine all individual zone polygons into one single shape
-    combined_geometry = unary_union(geometries)
-    clean_geometry = buffer(combined_geometry, 0.001) #should remove tiny/weird overlaps.
-    print("Successfully combined zone geometries.")
-    return clean_geometry, 'zone'
-
-
 def draw_alert_shape(ax, shp, colors):
     """Helper function to draw single or multi-polygons on the map."""
     polygons_to_draw = []
@@ -251,27 +103,6 @@ def draw_alert_shape(ax, shp, colors):
         ax.fill(x, y, facecolor=colors['facecolor'] + colors['fillalpha'], zorder=0)
         ax.plot(x, y, color='#000000', linewidth=4, transform=ccrs.PlateCarree(), zorder=4)
         ax.plot(x, y, color=colors['edgecolor'], linewidth=2, transform=ccrs.PlateCarree(), zorder=4)
-
-blank_watch_url = 'https://www.spc.noaa.gov/products/watch/ww' #+ XXXX.html
-def get_watch_attributes(id):
-    id = str(id).zfill(4) #pads the left side w/ 0s until its 4 wide (proper format for the spc website)
-    target_watch_url = f'{blank_watch_url}{id}.html'
-    print(target_watch_url)
-    
-    try:
-        response = requests.get(target_watch_url)
-        html_content = response.content
-        soup = BeautifulSoup(html_content, 'lxml') #want to get the first 6 things with class="wblack"
-        attribs = soup.find_all(class_='wblack')
-        attribs = attribs[:6] #first 6, gets repeitive after that for the like different views
-        watch_attribs = [tag.text for tag in attribs] #get only the text content
-        percents = [tag['title'].replace('% probability', '\%') for tag in attribs] 
-        print(watch_attribs, percents)
-        return watch_attribs, percents
-    except Exception as e:
-        print(f'error getting watch attributes: [{e}]')
-        return ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']
-
 
 def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
     plot_start_time = time.time()
@@ -535,7 +366,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 backgroundcolor=bgcolor, zorder = 5
             )
             text_artist.set_clip_box(clip_box)
-            text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.5, foreground='white'), PathEffects.Normal()])
+            text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.25, foreground='white'), PathEffects.Normal()])
             text_candidates.append((text_artist, scatter, city_x, city_y, city['city_ascii'], city_state, city_pop))
             plotted_points.append((city_x, city_y))
         
@@ -570,228 +401,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
 
         # Draw the polygon
         draw_alert_shape(ax, geom, colors)
-        #box to show info about hazards like hail/wind if applicable
-
-        maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
-        maxHail = alert['properties']['parameters'].get('maxHailSize', ["n/a"])[0] #float
-        windObserved = alert['properties']['parameters'].get('windThreat', ["n/a"])[0]
-        hailObserved = alert['properties']['parameters'].get('hailThreat', ["n/a"])[0]
-        torDetection = alert['properties']['parameters'].get('tornadoDetection', ['n/a'])[0] #string, possible for svr; radar-indicated, radar-confirmed, need to see others for tor warning
-        floodSeverity = alert['properties']['parameters'].get('flashFloodDamageThreat', ['n/a'])[0] #string, default level (unsure what this returns), considerable, catastophic
-        tStormSeverity = alert['properties']['parameters'].get('thunderstormDamageThreat', ['n/a'])[0] 
-        torSeverity = alert['properties']['parameters'].get('tornadoDamageThreat', ['n/a'])[0] #considerable for pds, catastrophic for tor e
-        floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
-        snowSquallDetection = alert['properties']['parameters'].get('snowSquallDetection', ['n/a'])[0] #"RADAR INDICATED" or "OBSERVED"
-        snowSquallImpact = alert['properties']['parameters'].get('snowSquallImpact', ['n/a'])[0] # "SIGNIFICANT" or nothing
-        waterspoutDetection = alert['properties']['parameters'].get('waterspoutDetection', ['n/a'])[0] #"OBSERVED" or "POSSIBLE"
-        #sps stuff
-        fireWeatherThreat = 'n/a'
-        denseFogThreat = 'n/a'
-        iceThreat = 'n/a'
-        additionalHazard = 'n/a' 
-        #watch stuff (add the word and percentage)
-        torProb = 'n/a'
-        sigTorProb = 'n/a'
-        windProb = 'n/a'
-        sigWindProb = 'n/a'
-        hailProb = 'n/a'
-        sigHailProb = 'n/a'
-        #flood stuff
-        rainFallen = 'n/a'
-        additionalRain = 'n/a'
-        
-        #watch getting
-        watch_attribs, watch_percents = ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']  #default to these
-        if alert_type == 'Severe Thunderstorm Watch' or alert_type == 'Tornado Watch':
-            description_text = alert['properties'].get('description', '').lower()
-            watch_id_match = re.search(r'\b\d{1,4}\b', description_text) #get the first instance of any 1 to 4 digit number in the watch desc (the watch number)
-            if watch_id_match:
-                watch_id = watch_id_match.group(0)
-                watch_attribs, watch_percents = get_watch_attributes(watch_id)
-                torProb = watch_attribs[0] + ' - ' + watch_percents[0]
-                sigTorProb = watch_attribs[1] + ' - ' + watch_percents[1]
-                windProb = watch_attribs[2] + ' - ' + watch_percents[2]
-                sigWindProb = watch_attribs[3] + ' - ' + watch_percents[3]
-                hailProb = watch_attribs[4] + ' - ' + watch_percents[4]
-                sigHailProb = watch_attribs[5] + ' - ' + watch_percents[5]
-            else:
-                print('error getting watch id from watch text!')
-                watch_attribs, watch_percents = ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a'], ['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']
-        
-        #handling SMWs because they don't have maxwind/maxhail in their parameters
-        if alert_type == 'Special Marine Warning':
-            description_text = alert['properties'].get('description','').lower()
-            if maxWind == 'n/a':
-                wind_match = re.search(r"wind gusts.*?(\d+)\s*knots", description_text) #regex is beyond me
-                if wind_match:
-                    maxWind = f"{wind_match.group(1)}kts"
-            
-            if maxHail == 'n/a':
-                hail_match = re.search(r"hail.*?([\d.]+)\s*inch", description_text)
-                if hail_match:
-                    try:
-                        #convert to float
-                        maxHail = float(hail_match.group(1))
-                    except ValueError:
-                        print('could not parse hail size from description')
-                        
-        #handle flood related things, so rain amts and mudslides
-        if alert_type in ['Flash Flood Warning', 'Flood Advisory']:
-            # Normalize the text: collapse newlines/tabs/multiple spaces into single spaces
-            raw_desc = alert['properties'].get('description', '')
-            description_text = ' '.join(raw_desc.split()).lower()
-            print(description_text)
-
-            # --- Rain that has already fallen ---
-            fallen_pattern = (
-                r"(?i)"
-                r"(?:"
-                    r"between\s+([\d.]+)\s*(?:and|to|-)\s*([\d.]+)"  # between X and Y
-                    r"|([\d.]+)\s*to\s*([\d.]+)"                     # X to Y
-                    r"|up\s*to\s*([\d.]+)"                           # up to X
-                    r"|([\d.]+)"                                     # single value
-                r")"
-                r"\s*inch(?:es)?(?:\s+of\s+rain)?"
-                r"(?:[^.]{0,80})?"                                  # allow filler before "have fallen"
-                r"\b(?:have|has)\s+fallen"                                  # anchor
-            )
-
-            # --- Additional rain expected / possible ---
-            additional_pattern = (
-                r"(?i)"
-                r"additional\s+rainfall\s+amounts\s+(?:of\s+)?"
-                r"(?:"
-                    r"up\s*to\s*([\d.]+)"                            # up to X
-                    r"|([\d.]+)\s*(?:to|and|-)\s*([\d.]+)"           # X to Y
-                    r"|([\d.]+)"                                     # single value
-                r")"
-                r"\s*inch(?:es)?(?:[^.]{0,60})?(?:\s+(?:are|is|remain|will\s+be|could\s+be)\s+\w+)?"  # filler
-            )
-            
-            mudslide_pattern = (
-                r"(mudslide)|(a mudslide)"
-            )
-
-            fallen_match = re.search(fallen_pattern, description_text)
-            additional_match = re.search(additional_pattern, description_text)
-            mudslide_match = re.search(mudslide_pattern, description_text)
-
-            rainFallen = 'n/a'
-            additionalRain = 'n/a'
-            additionalHazard = 'n/a'
-
-            if fallen_match:
-                g = fallen_match.groups()
-                # groups: (between1, between2, to1, to2, up_to, single)
-                if g[0] and g[1]:
-                    rainFallen = f"{g[0]} - {g[1]}"
-                elif g[2] and g[3]:
-                    rainFallen = f"{g[2]} - {g[3]}"
-                elif g[4]:
-                    rainFallen = f"up to {g[4]}"
-                elif g[5]:
-                    rainFallen = g[5]
-
-            if additional_match:
-                g = additional_match.groups()
-                # groups: (up_to, between1, between2, single)
-                if g[1] and g[2]:
-                    additionalRain = f"{g[1]} - {g[2]}"
-                elif g[0]:
-                    additionalRain = f"up to {g[0]}"
-                elif g[3]:
-                    additionalRain = g[3]
-            
-            if mudslide_match:
-                g = mudslide_match.groups()
-                print(mudslide_match.groups())
-                additionalHazard = 'Mudslide'
-
-
-            print("Accumulated Rainfall:", rainFallen)
-            print("Additional rain:", additionalRain)
-        
-        #handle non-convective SPS                
-        if alert_type == 'Special Weather Statement' and geom_type == 'zone':
-            print('regexing SPS for more infos')
-            description_text = alert['properties'].get('description', '').lower()
-            headline_text = alert['properties']['parameters'].get('NWSheadline', [''])[0].lower()
-            search_text = description_text + ' ' + headline_text
-
-            # Define regex patterns, need to flesh these out some more
-            fire_regex = r'\bfire\b|\bwildfire\b|red\s*flag'
-            fog_regex = r'dense\s*fog|visibility\s*(?:one|a)\s*quarter\s*mile|zero\s*visibility|\bareas\s+of\s+fog\b'
-            ice_regex = r'\bice\b|\bicy\b'
-            blackice_regex =  r'black\s+ice'
-            funnel_regex = r'funnel\s+cloud' #search sps for funnel clouds possible
-
-            # Search for matches, ignoring case
-            if re.search(fire_regex, search_text, re.IGNORECASE):
-                fireWeatherThreat = "Elevated"
-            if re.search(fog_regex, search_text, re.IGNORECASE):
-                denseFogThreat = "Likely"
-            if re.search(ice_regex, search_text, re.IGNORECASE):
-                iceThreat = "Possible Across the Area"
-            if re.search(blackice_regex, search_text, re.IGNORECASE):
-                iceThreat = 'Black Ice Possible'
-            if re.search(funnel_regex, search_text, re.IGNORECASE):
-                additionalHazard = 'Funnel Clouds Possible'
-        
-        if alert_type == 'Dense Fog Advisory':
-            denseFogThreat = 'Likely'
-             
-        hazard_details = [
-            (maxWind, 'Max. Wind Gusts', ""),
-            (maxHail, 'Max. Hail Size', "in"),
-            (floodSeverity, 'Damage Threat', ""),
-            (tStormSeverity, 'Damage Threat', ""),
-            (torSeverity, 'Damage Threat', ""),
-            (snowSquallImpact, 'Impact', ""),
-            (torDetection, 'Tornado', ""),
-            (waterspoutDetection, 'Waterspout', ""),
-            (snowSquallDetection, 'Snow Squall', ""),
-            (floodDetection, 'Flash Flood', ""),
-            (fireWeatherThreat, 'Risk of Fire Weather', ""),
-            (denseFogThreat, 'Fog Development', ""),
-            (iceThreat, 'Icy Conditions', ""),
-            (torProb, 'Tornado Probability', ""),
-            (sigTorProb, 'Sig. Tornado Probability', ""),
-            (windProb, 'Wind Probability', ""),
-            (sigWindProb, 'Sig. Wind Probability', ""),
-            (hailProb, 'Hail Probability', ""),
-            (sigHailProb, 'Sig. Hail Probability', ""),
-            (rainFallen, 'Accumulated Rainfall', "in"),
-            (additionalRain, 'Additional Rain', "in"),
-            (additionalHazard, 'Additional Hazards', "")
-        ]
-
-        details_text_lines = []
-        for value, label, suffix in hazard_details:
-            if value != "n/a" and value != 'n/a - n/a' and value != '0.00': #second one is for the watch probs if there aren't any #third is for hail
-                # Escape any spaces in the value for LaTeX rendering
-                escaped_value = str(value).replace(" ", r"\ ")
-                
-                # Start the LaTeX string with the bolded value and its unit/suffix
-                # Example: $\bf{1.25in}
-                formatted_string = f"$\\bf{{{escaped_value}{suffix}}}"
-                
-                # Check if the 'OBSERVED' tag is needed for this specific hazard
-                is_observed = False
-                if label == 'Max. Wind Gusts' and windObserved == 'OBSERVED':
-                    is_observed = True
-                elif label == 'Max. Hail Size' and hailObserved == 'OBSERVED':
-                    is_observed = True
-                
-                if is_observed:
-                    # If observed, add a space and the italicized tag
-                    # Example: \ \mathit{(OBSERVED)}
-                    formatted_string += r"\ \mathit{(observed)}"
-
-                # Close the LaTeX math string
-                formatted_string += "$"
-                
-                details_text_lines.append(f"{label}: {formatted_string}")
-
+        #box to show info about hazards like hail/wind if applicable, also get tags for the pdsBox
+        details_text_lines, torSeverity, tStormSeverity, floodSeverity, torDetection, waterspoutDetection = get_hazard_details(alert, geom_type)
         details_text = "\n".join(details_text_lines)
         
         #shrink fontsize if there are more than 3 things in the detailstext infobox (rare but i've seen it)
@@ -802,6 +413,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
                 info_box = AnchoredText(details_text, loc=3, prop={'size': 10}, frameon=True, zorder = 7)
             ax.add_artist(info_box)
         
+        #add a pop-up box if any of these criteria are hit
         pdsBox = None
         pdsBox_text = None
         pdsBox_color = None
@@ -856,10 +468,10 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         )
         ax.add_artist(ab)
         
-        # Save the image
-        
+        # Save the plot image
         ax.set_aspect('equal')  # or 'equal' if you want uniform scaling
         plt.savefig(output_path, bbox_inches='tight', dpi= 400)
+        
         if not impacted_cities: 
             area_desc = alert['properties'].get('areaDesc', ['n/a'])
         else:
@@ -903,7 +515,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/ffw_regex_test.json', 'r') as file: 
+    with open('test_alerts/alaskasps.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/mudslide', True, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/badsps1', False, 'issued')

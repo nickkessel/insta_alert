@@ -101,6 +101,29 @@ normalized_stops3 = [
 ]
 # Create the colormap
 qpe2_cmap = LinearSegmentedColormap.from_list("QPE", normalized_stops3)
+
+stops4 = [
+    (0.0,   (70, 130, 220, 255)),   # steel blue
+    (5.0,   (0, 191, 255, 255)),     # deep sky blue
+    (10.0,  (60, 179, 113, 255)),   # medium sea green
+    (15.0,  (50, 205, 50, 255)),    # lime green
+    (20.0,  (173, 255, 47, 255)),   # green-yellow
+    (25.0,  (255, 255, 0, 255)),    # yellow
+    (30.0,  (255, 165, 0, 255)),    # orange
+    (35.0,  (255, 69, 0, 255)),     # red-orange
+    (40.0,  (255, 0, 0, 255)),      # red
+]
+
+# Normalize dBZ values to 0–1 for matplotlib
+min_val4 = stops4[0][0]
+max_val4 = stops4[-1][0]
+normalized_stops4 = [
+    ((level - min_val4) / (max_val4 - min_val4), tuple(c/255 for c in color))
+    for level, color in stops4
+]
+# Create the colormap
+temp_cmap = LinearSegmentedColormap.from_list("Temp", normalized_stops4)
+
 MAX_CACHE_SIZE = 10 #how many mrms scans it holds in the cache before it starts deleting 
 
 valid_time = 0
@@ -123,6 +146,7 @@ def save_mrms_subset(bbox, type, state_borders):
     qpe1hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz" #past 1 hour, updated every 2min, with a 4-5min lag
     qpe3hr_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_03H/MRMS_RadarOnly_QPE_03H.latest.grib2.gz" #past 3 hours (only updated at the top of every hour???? better data but thats not great)
     alaskaref_url = 'https://mrms.ncep.noaa.gov/2D/ALASKA/MergedReflectivityAtLowestAltitude/MRMS_MergedReflectivityAtLowestAltitude.latest.grib2.gz'
+    twomtemp_url = 'https://mrms.ncep.noaa.gov/2D/Model_SurfaceTemp/MRMS_Model_SurfaceTemp.latest.grib2.gz'
     
     if type == "Flash Flood Warning":
         url = qpe1hr_url
@@ -131,6 +155,13 @@ def save_mrms_subset(bbox, type, state_borders):
         cmap_to_use = qpe2_cmap
         data_min, data_max = min_val3, max_val3
         cbar_label = "Radar Estimated Precipitation (1h)"
+    elif type == 'Temp':
+        url = twomtemp_url
+        convert_units = False
+        print("Temp")
+        cmap_to_use = temp_cmap
+        data_min, data_max = min_val4, max_val4
+        cbar_label = "Surface Temperature (C)"
     else:
         url = alaskaref_url
         convert_units = False
@@ -435,4 +466,4 @@ if __name__ == '__main__':
         "lat_max": 45
     }
 
-    save_mrms_subset(test_bbox, "Flash Flood Warning", True)
+    save_mrms_subset(test_bbox, "Temp", True)
