@@ -47,6 +47,11 @@ WATCH_DELAY_TIME = 800 #seconds, should not take this long for watchCanBePlotted
 required_folders = ['graphics']
 
 def get_nws_alerts():
+    """Gets NWS Alerts from the API
+
+    Returns:
+        list: active alerts that are of the chosen type and in the given area.
+    """    
     print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL} at {datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%Sz %m/%d")}' + Fore.RESET)
     try:
         response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"}, stream = True)
@@ -230,15 +235,52 @@ def are_alerts_different(new_alert, ref_alert):
         print("Alert type (polygon vs. zone) differs from reference.")
         return True, 'continued'
 
+def check_if_alert_is_valid(alert):
+    """
+    Checks if an alert is a cancellation or has expired.
+    
+    Returns True if the alert is valid for posting, False otherwise.
+    """
+    properties = alert.get("properties", {})
+    awips_id = properties['parameters'].get('AWIPSidentifier', ['ERROR'])[0]
+    event_type = properties.get("event")
+    clickable_alert_id = properties.get("@id")
+    
+    # SVR/SVS cancellation check (if wind and hail are both n/a, it's a cancellation)
+    if awips_id.startswith("SV"):
+        max_wind = properties['parameters'].get('maxWindGust', ["n/a"])[0]
+        max_hail = properties['parameters'].get('maxHailSize', ["n/a"])[0]
+        if max_wind == "n/a" and max_hail == "n/a":
+            print(Fore.RED + f"Check failed, SVR/SVS expired or cancelled: {clickable_alert_id}" + Fore.RESET)
+            return False
+            
+    # FFW/FFS cancellation check (if detection source is n/a, it's a cancellation)
+    if awips_id.startswith("FF"):
+        flood_detection = properties['parameters'].get('flashFloodDetection', ['n/a'])[0]
+        if flood_detection == "n/a":
+            print(Fore.RED + f"Check failed, FFW expired or cancelled: {clickable_alert_id}" + Fore.RESET)
+            return False
+
+    # (Optional) Flood Watch expiration check. You can remove this if you don't monitor watches.
+    if event_type == 'Flood Watch' and properties.get('urgency') == "Past":
+        print(Fore.RED + f"Check failed, Flood Watch expired: {clickable_alert_id}" + Fore.RESET)
+        return False
+        
+    # If none of the cancellation conditions are met, the alert is valid.
+    return True
+
 check_time = 60 #seconds of downtime between scans
+# In main.py, replace the existing main() function with this new one.
 
 def main():
-    # --- Create a queue for communication between main thread and slideshow thread ---
+    """
+    Main loop to fetch, process, and post weather alerts.
+    This version uses a more robust, multi-stage logic to handle watch delays correctly.
+    """
     slideshow_queue = None
     if config.SEND_TO_SLIDESHOW:
         slideshow_queue = queue.Queue()
         from slideshow import run_slideshow
-        # Start the slideshow in a daemon thread so it closes when the main script exits
         slideshow_thread = threading.Thread(
             target=run_slideshow, args=(slideshow_queue,), daemon=True
         )
@@ -248,153 +290,117 @@ def main():
     while True:
         print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
         
-        ready_watches = [] 
-        watches_still_waiting = []
-        
+        # --- Stage 1: Prepare lists for the current scan cycle ---
+        alerts_ready_to_process = []
+        watches_for_next_cycle = []
+        newly_delayed_watches = []
+
+        # --- Stage 2: Evaluate watches delayed from the PREVIOUS cycle ---
         current_time = time.time()
         for add_time, watch_alert in delayed_watches:
-            watch_desc = watch_alert['properties'].get('description', '').lower()
-            watch_id = get_watch_number(watch_desc)
-            if watch_id:
-                has_attribs, _, _ = get_watch_attributes(watch_id) #can ignore the actual values, we just care abt if there are attributes
-                if has_attribs:
-                    watchCanBePlotted = True
-                else:
-                    watchCanBePlotted = False
-            
-            if (current_time - add_time >= WATCH_DELAY_TIME) or watchCanBePlotted: #if a watch has been in the queue long enough or if has_attribs is true.
-                alert_id = watch_alert['properties']['id']
-                print(Fore.GREEN + f'Watch {alert_id} is done in queue, trying to generate graphics w/ attributes now.' + Fore.RESET)
-                ready_watches.append(watch_alert)
+            alert_id = watch_alert['properties']['id']
+
+            # If a watch was already posted (e.g., via timeout), discard it.
+            if alert_id in posted_alerts:
                 queued_watch_ids.discard(alert_id)
+                continue
+
+            watch_desc = watch_alert['properties'].get('description', '').lower()
+            watch_id_num = get_watch_number(watch_desc)
+            
+            has_attribs = False
+            if watch_id_num:
+                has_attribs, _, _ = get_watch_attributes(watch_id_num)
+
+            # Promote the watch if it's ready OR has timed out
+            if has_attribs or (current_time - add_time >= WATCH_DELAY_TIME):
+                print(Fore.GREEN + f'Promoting watch {alert_id} from delay queue to be processed.' + Fore.RESET)
+                alerts_ready_to_process.append(watch_alert)
             else:
-                watches_still_waiting.append((add_time, watch_alert))
-        delayed_watches[:] = watches_still_waiting
+                # Otherwise, keep it in the delay queue for the next cycle
+                watches_for_next_cycle.append((add_time, watch_alert))
         
+        # --- Stage 3: Fetch and triage NEW alerts from the API ---
         alerts_stack = []
         if IS_TESTING:
-            print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET + Fore.RESET)
-            # in test mode, load the UPGRADED alert
+            print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
             with open('test_alerts/tstmwatch.json', 'r') as f:
-                loaded_alert = json.load(f)
-                alerts_stack = [loaded_alert]
-                print('loaded test alert')
+                alerts_stack = [json.load(f)]
         else:
-            # in normal mode, fetch live alerts
             alerts_stack = get_nws_alerts()
-        if ready_watches:
-            alerts_stack.extend(ready_watches) #different from append() because it adds each element of the iterable provided as its own element rather than just as one big single element
-        
+
         for alert in alerts_stack:
-            #get info about the alert
-            properties = alert.get("properties", {})
-            awips_id = alert['properties']['parameters'].get('AWIPSidentifier', ['ERROR'])[0] #ex. SVSILN or TORGRR
-            event_type = properties.get("event")
-            clickable_alert_id = properties.get("@id") #with https, etc so u can click in terminal
-            alert_id = properties.get("id") #just the id
-            
-            #intercept watches to add to the queue so they don't get posted w/o tags
-            if event_type in ['Tornado Watch', 'Severe Thunderstorm Watch'] and alert_id not in posted_alerts and alert_id not in queued_watch_ids:
-                print('appending watch to seperate queue ')
-                delayed_watches.append((time.time(), alert))
+            alert_id = alert['properties']['id']
+            event_type = alert['properties']['event']
+
+            # Skip any alert that has already been posted or is already waiting in our queue
+            if alert_id in posted_alerts or alert_id in queued_watch_ids:
+                continue
+
+            # If it's a NEW watch, add it to a temporary "newly delayed" list
+            if event_type in ['Tornado Watch', 'Severe Thunderstorm Watch']:
+                print(f'New watch detected ({alert_id}). Adding to delay queue for next cycle.')
+                newly_delayed_watches.append((time.time(), alert))
                 queued_watch_ids.add(alert_id)
-                continue  #skip the rest of the processing  
+            else:
+                # If it's any other type of new, valid alert, add it to be processed now
+                alerts_ready_to_process.append(alert)
+
+        # --- Stage 4: Update the master delay list for the NEXT cycle ---
+        delayed_watches[:] = watches_for_next_cycle + newly_delayed_watches
+
+        # --- Stage 5: Process all alerts that are ready for this cycle ---
+        for alert in alerts_ready_to_process:
+            properties = alert.get("properties", {})
+            alert_id = properties.get("id")
+
+            # Final safeguard check
+            if alert_id in posted_alerts:
+                continue
+
+            # Check for cancellations (SVR, FFW, etc.)
+            if not check_if_alert_is_valid(alert):
+                posted_alerts.add(alert_id) # Mark cancelled alert as "handled"
+                continue
+
+            awips_id = properties['parameters'].get('AWIPSidentifier', ['ERROR'])[0]
+            clickable_alert_id = properties.get("@id")
+            expiry_time_iso = properties.get("expires")
+            clean_alert_id = clean_filename(alert_id)
             
-            expiry_time_iso = properties.get("expires") # <-- Added for slideshow
-            clean_alert_id = clean_filename(alert_id) #id minus speciasl chars so it can be saved
-            maxWind = alert['properties']['parameters'].get('maxWindGust', ["n/a"])[0] #integer
-            maxHail = alert['properties']['parameters'].get('maxHailSize', ["n/a"])[0] #float
-            floodDetection = alert['properties']['parameters'].get('flashFloodDetection', ['n/a'])[0]
-            references = properties.get('references') #returns as list
-            new_geom = alert['geometry']
-
-            #this should stop cancelled warnings (which come through as svr/svs), but don't have a value for wind/hail from getting gfx made
-            #also stops cancelled ffws (which don't have a source for the warning)
-            #also will stop expired/cancelled flood watches
-            null_check_passed = True
-            if awips_id[:2] == "SV": #if alert is type svr or svs
-                if (maxWind == "n/a" and maxHail == "n/a"): 
-                    null_check_passed = False
-                    print(Fore.RED + f"Null check failed, SVR/SVS expired {clickable_alert_id}")
-                else:
-                    null_check_passed = True
-            if awips_id[:3] == "FFW" or awips_id[:3] == "FFS": #same but for ffws
-                if (floodDetection == "n/a"): 
-                    null_check_passed = False
-                    print(Fore.RED + f"Null check failed, FFW expired {clickable_alert_id}")
-                else:
-                    null_check_passed = True
-            if event_type == 'Flood Watch':
-                if (properties.get('urgency') == "Past"):
-                    null_check_passed = False
-                    print(Fore.RED + f"Null check failed, Flood Watch expired {clickable_alert_id}")
-                else:
-                    null_check_passed = True
-
-            ref_check_passed = True #default to true as not every alert has a ref check
-            alert_verb = 'issued' #default to issued
+            # Check for upgrades or significant changes
+            ref_check_passed, alert_verb = True, 'issued'
             references = properties.get('references')
             if references:
                 try:
-                    ref_url = references[-1]['@id'] #always gets the last item in list, which is the most recent warning.
-                    print(Fore.LIGHTMAGENTA_EX + f"Alert ({clickable_alert_id}) has reference: {ref_url}" + Fore.RESET)
-                    if IS_TESTING: #testing for single local alert
-                        with open (ref_url, 'r') as f:
-                            ref_data = json.load(f)
-                    else: #normal, get from the api
-                        ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
-                        ref_response.raise_for_status()
-                        ref_data = ref_response.json()
-                    
-                    ref_check_passed, alert_verb = are_alerts_different(alert, ref_data) #check if the alert has a reference AND if its been upgraded
-                    print(ref_check_passed, alert_verb)
+                    ref_url = references[-1]['@id']
+                    ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
+                    ref_response.raise_for_status()
+                    ref_data = ref_response.json()
+                    ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
                 except Exception as e:
-                    print(Fore.RED + f"Error processing reference alert: {e}" + Fore.RESET)
-
-            if alert_id not in posted_alerts and null_check_passed == True and ref_check_passed == True:
-                message = (
-                    f"Alert to generate gfx: {clickable_alert_id}"
-                )
-                print(Fore.LIGHTBLUE_EX + message)
-                print(Fore.RESET) #sets color back to white for plot_alert_polygon messages
-                alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.jpg'
-                try: #try/except as we were getting incomplete file errors!
-                    plot_mrms = True #default, we want to plot radar
-                    properties = alert["properties"]
-                    no_mrms_list = ['Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory']
-                    if event_type in no_mrms_list:
-                        plot_mrms = False
-                    
-                    try:
-                        path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
-                    except Exception as e:
-                        report_error(e, context=f"Plotting {event_type} alert")
-                        time.sleep(15)
-                        continue
-
-                    # --- If slideshow is enabled, send it the new alert info ---
-                    if config.SEND_TO_SLIDESHOW and path and expiry_time_iso:
-                        slideshow_queue.put((path, expiry_time_iso))
-                    if config.POST_TO_FACEBOOK:
-                        post_to_facebook(statement, alert_path)
-                    if config.POST_TO_DISCORD:
-                        log_to_discord(statement, alert_path)
-                    if config.POST_TO_INSTAGRAM_STORY:
-                        make_instagram_post(statement, alert_path, 'story', ig_client)
-                    if config.POST_TO_INSTAGRAM_GRID:
-                        make_instagram_post(statement, alert_path, 'grid', ig_client)
-                    posted_alerts.add(alert_id)
+                    print(Fore.RED + f"Error processing reference for {alert_id}: {e}" + Fore.RESET)
+            
+            if ref_check_passed:
+                print(Fore.LIGHTBLUE_EX + f"Processing graphics for {alert_verb} alert: {clickable_alert_id}" + Fore.RESET)
+                alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
+                try:
+                    path, statement = plot_alert_polygon(alert, alert_path, True, alert_verb)
+                    if path and statement:  # Ensure plotting was successful
+                        if config.SEND_TO_SLIDESHOW and expiry_time_iso:
+                            slideshow_queue.put((path, expiry_time_iso))
+                        if config.POST_TO_FACEBOOK:
+                            post_to_facebook(statement, alert_path)
+                        if config.POST_TO_DISCORD:
+                            log_to_discord(statement, alert_path)
+                        posted_alerts.add(alert_id)
+                    else:
+                        print(Back.YELLOW + f'Plotting failed for {alert_id}, will retry on next scan.' + Back.RESET)
                 except Exception as e:
-                    print(Back.RED + f'An error occurred. Waiting 15 seconds then restarting.' + Back.RESET)
-                    time.sleep(15)
-                    continue
-            elif alert_id in posted_alerts:
-                message = (
-                    f"Alert already handled: {clickable_alert_id}"
-                )
-                print(Fore.LIGHTBLUE_EX + message)
-        print(Fore.LIGHTCYAN_EX + f'End scan for alerts - all gfx generated or previously handled. Rescan in {check_time}s')
-        time.sleep(check_time)  # Check every x seconds
+                    print(Back.RED + f'CRITICAL ERROR during plotting of {alert_id}: {e}' + Back.RESET)
+
+        print(Fore.LIGHTCYAN_EX + f'End scan. {len(delayed_watches)} watches in queue. Rescan in {check_time}s' + Fore.RESET)
+        time.sleep(check_time)
 
 for folder in required_folders:
     print(f"checking for required folder: {folder}")

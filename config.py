@@ -6,7 +6,7 @@ WINTER = ['Winter Storm Warning', 'Frost Advisory', 'Freeze Warning']
 WATCHES = ['Tornado Watch', 'Severe Thunderstorm Watch', 'Flood Watch', 'Flash Flood Watch']
 
 ALERT_TYPES_TO_MONITOR = (
-    WATCHES
+    "Special Weather Statement"
 )
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.

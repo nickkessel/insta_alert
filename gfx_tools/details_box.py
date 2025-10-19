@@ -174,8 +174,9 @@ def get_hazard_details(alert, geom_type):
         #handle non-convective SPS                
         if alert_type == 'Special Weather Statement' and geom_type == 'zone':
             #print('regexing SPS for more infos')
+            specific_hazard_found = False
             description_text = alert['properties'].get('description', '').lower()
-            headline_text = alert['properties']['parameters'].get('NWSheadline', [''])[0].lower()
+            headline_text = alert['properties']['parameters'].get('NWSheadline', [''])[0]
             search_text = description_text + ' ' + headline_text
 
             # Define regex patterns, need to flesh these out some more
@@ -184,18 +185,35 @@ def get_hazard_details(alert, geom_type):
             ice_regex = r'\bice\b|\bicy\b'
             blackice_regex =  r'black\s+ice'
             funnel_regex = r'funnel\s+cloud' #search sps for funnel clouds possible
+            sps_gusty_winds_regex = r'strong\s+winds'
 
             # Search for matches, ignoring case
             if re.search(fire_regex, search_text, re.IGNORECASE):
                 fireWeatherThreat = "Elevated"
+                specific_hazard_found = True
             if re.search(fog_regex, search_text, re.IGNORECASE):
                 denseFogThreat = "Likely"
+                specific_hazard_found = True
+
             if re.search(ice_regex, search_text, re.IGNORECASE):
                 iceThreat = "Possible Across the Area"
+                specific_hazard_found = True
             if re.search(blackice_regex, search_text, re.IGNORECASE):
                 iceThreat = 'Black Ice Possible'
+                specific_hazard_found = True
             if re.search(funnel_regex, search_text, re.IGNORECASE):
                 additionalHazard = 'Funnel Clouds Possible'
+                specific_hazard_found = True
+            if re.search(sps_gusty_winds_regex, search_text, re.IGNORECASE):
+                additionalHazard = 'Gusty (non Tstorm) Winds Possible'
+                specific_hazard_found = True
+            
+            if not specific_hazard_found:
+                if headline_text:
+                    additionalHazard = headline_text
+                else:
+                    additionalHazard = 'See Statement for Details'
+                
 
         if alert_type == 'Dense Fog Advisory':
             denseFogThreat = 'Likely'
@@ -205,7 +223,7 @@ def get_hazard_details(alert, geom_type):
             description_text = ' '.join(raw_desc.split()).lower()
             
             wind_pattern = r"\b(?:[Nn]orth|[Ss]outh|[Ee]ast|[Ww]est)?\s*winds?\s+(?:around\s+)?(\d+(?:\s*(?:to|-)\s*\d+)?)\s*mph"
-            gust_pattern = r"\bgusts?\s+(?:around\s+)?(\d+(?:\s*(?:to|-)\s*\d+)?)\s*mph"
+            gust_pattern = r"\bgusts?\s+(?:up to|around)?\s*(\d+(?:\s*(?:to|-)\s*\d+)?)\s*mph"
 
             wind_match = re.search(wind_pattern, description_text)
             gust_match = re.search(gust_pattern, description_text)
@@ -235,9 +253,9 @@ def get_hazard_details(alert, geom_type):
             ('Sig. Hail Probability', sigHailProb, ''),
             ('Accumulated Rainfall', rainFallen, 'in'),
             ('Additional Rain', additionalRain, 'in'),
-            ('Additional Hazards', additionalHazard, ''),
-            ('Max. Sustained Wind', hwwWind, 'mph'), #seperate ones from the normal winds 
-            ('Max. Wind Gusts', hwwGust, 'mph')
+            ('Hazard', additionalHazard, ''),
+            ('Max. Sustained Wind', hwwWind, ' MPH'), #seperate ones from the normal winds 
+            ('Max. Wind Gusts', hwwGust, ' MPH')
         ]
         
         

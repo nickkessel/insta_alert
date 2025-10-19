@@ -1,6 +1,6 @@
 [project]
 name = 'insta-alert'
-version = '0.7.5'
+version = '0.7.6'
 requires-python = '>=3.12'
 
 dependencies = [

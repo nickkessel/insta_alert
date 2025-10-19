@@ -262,7 +262,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         if mrms_plot == True:
             subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)
             #directly plot the MRMS data onto the main axes (and colorbar, seperately)
-            if subset is not None:
+            if subset is not None and subset.unknown.size > 0:
                 im = ax.pcolormesh(
                     subset.longitude, subset.latitude, subset.unknown,
                     transform=ccrs.PlateCarree(),
