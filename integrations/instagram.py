@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import os
 from colorama import Fore, Back, Style
 from PIL import Image, ImageOps
-import config
+import config.test as test
 import json
 load_dotenv()
 

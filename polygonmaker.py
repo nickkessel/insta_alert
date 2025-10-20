@@ -1,7 +1,6 @@
 #using this as like a test thing
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
 from shapely.geometry import shape, Point
 import pandas as pd
 from datetime import datetime
@@ -12,18 +11,16 @@ import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
 import geopandas as gpd
 import time
-from shapely import unary_union, buffer
 from colorama import Back, Fore, Style
 from plot_mrms2 import get_mrms_data_async
-import re
-import requests
 from timezonefinderL import TimezoneFinder
 import gc
 import json
-import config
-from config import ALERT_COLORS
+from config_manager import config
+from constants import ALERT_COLORS
 from gfx_tools.details_box import get_hazard_details
 from gfx_tools.get_alert_geometry import get_alert_geometry
+from gfx_tools.winter_product import is_alert_winter
 import importlib.metadata
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
@@ -244,13 +241,12 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         ax.set_extent(map_region, crs=ccrs.PlateCarree())
 
         clip_box = ax.get_window_extent() #for the text on screen
-        #NEW: plotting MRMS data here
         #check for region
         office_awips = alert['properties']['parameters'].get("AWIPSidentifier")[0]
         office_awips = office_awips[3:]
         if office_awips == 'SJU':
             region = 'PR'
-        elif office_awips == 'AFC' or office_awips == 'AJK' or office_awips == 'AFG' or office_awips == 'ALU' or office_awips == 'NSB' or office_awips == 'AER':
+        elif office_awips in ['AFC', 'AJK', 'AFG', 'ALU', 'NSB', 'AER', 'WCZ']:
             region = 'AK'
         elif office_awips == 'HFO':
             region = 'HI'
@@ -258,6 +254,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             region = 'GU'
         else:
             region = 'US'
+            
+        use_snow_cmap = is_alert_winter(alert)
             
         if mrms_plot == True:
             subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)

@@ -29,6 +29,7 @@ dist/
 /test_alerts
 /mrms_stuff
 /loggedAlerts
+/deprecatedortest
 
 #deprecated/testing scripts and assets
 /plot_l3.py

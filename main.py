@@ -8,13 +8,11 @@ import json
 import requests
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 2' + Fore.RESET + Back.RESET)
 import re
-from polygonmaker import plot_alert_polygon
 import os
 from dotenv import load_dotenv
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
 import threading #slideshow
 import queue #slideshow
-import config
 from integrations.instagram import  make_instagram_post, instagram_login
 from integrations.discord import log_to_discord
 from integrations.facebook import post_to_facebook
@@ -26,6 +24,10 @@ load_dotenv()
 load_done_time = time.time() - load_time
 print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
 
+import argparse
+import config_manager
+
+
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
 #(cont.) Added preliminary support for SPS/SMW; Wording changes; PDS box changes for readability; Added more hazards to hazard box; Added more pop-ups utilizing PDS box system; -DK
 #TODO: test for dust storm warning/snow squall warning, will take a while as 1; it's not winter, and 2; dust storm warnings dont get issued too often. DSW not implimented. SQW needs work. -DK
@@ -34,7 +36,6 @@ print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
 IS_TESTING = False # Set to True to use local files, False to run normally
 
-warning_types = config.ALERT_TYPES_TO_MONITOR
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
 start_time = time.time()
@@ -46,9 +47,10 @@ WATCH_DELAY_TIME = 800 #seconds, should not take this long for watchCanBePlotted
 
 required_folders = ['graphics']
 
-def get_nws_alerts():
+def get_nws_alerts(warning_types):
     """Gets NWS Alerts from the API
-
+    Args:
+        warning_types (list): warning types to monitor for
     Returns:
         list: active alerts that are of the chosen type and in the given area.
     """    
@@ -119,7 +121,7 @@ def are_alerts_different(new_alert, ref_alert):
     Only works with polygon based alerts 
     Compares a new alert with its reference to see if it's a significant update.
     Returns True if it's new/different and should be posted.
-    Returns False if it's a non-critical duplicate update.
+    Returns False if it's a non-critical duplicate update, or a cancellation
     Returns the "action", like upgraded or continued
     """
     new_geom = new_alert.get('geometry')
@@ -261,16 +263,16 @@ def check_if_alert_is_valid(alert):
             print(Fore.RED + f"Check failed, FFW expired or cancelled: {clickable_alert_id}" + Fore.RESET)
             return False
 
-    # (Optional) Flood Watch expiration check. You can remove this if you don't monitor watches.
-    if event_type == 'Flood Watch' and properties.get('urgency') == "Past":
-        print(Fore.RED + f"Check failed, Flood Watch expired: {clickable_alert_id}" + Fore.RESET)
+    # general expiration check, add alert types to list as I see them having issues w/ posting expired ones
+    if event_type in ['Flood Watch', 'Frost Advisory', 'Dense Fog Advisory', 'High Wind Warning'] and properties.get('urgency') == "Past":
+        print(Fore.RED + f"Check failed, {event_type} expired: {clickable_alert_id}" + Fore.RESET)
         return False
+    
         
     # If none of the cancellation conditions are met, the alert is valid.
     return True
 
 check_time = 60 #seconds of downtime between scans
-# In main.py, replace the existing main() function with this new one.
 
 def main():
     """
@@ -288,6 +290,7 @@ def main():
         print(Fore.MAGENTA + "Slideshow thread started." + Fore.RESET)
 
     while True:
+        warning_types = config.ALERT_TYPES_TO_MONITOR
         print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
         
         # --- Stage 1: Prepare lists for the current scan cycle ---
@@ -327,7 +330,7 @@ def main():
             with open('test_alerts/tstmwatch.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
-            alerts_stack = get_nws_alerts()
+            alerts_stack = get_nws_alerts(warning_types)
 
         for alert in alerts_stack:
             alert_id = alert['properties']['id']
@@ -379,13 +382,19 @@ def main():
                     ref_data = ref_response.json()
                     ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
                 except Exception as e:
-                    print(Fore.RED + f"Error processing reference for {alert_id}: {e}" + Fore.RESET)
+                    print(Fore.RED + f"Error processing reference for {clickable_alert_id}: {e}" + Fore.RESET)
             
             if ref_check_passed:
                 print(Fore.LIGHTBLUE_EX + f"Processing graphics for {alert_verb} alert: {clickable_alert_id}" + Fore.RESET)
-                alert_path = f'graphics/alert_{awips_id}_{clean_alert_id}.png'
+                alert_path = f'{config.OUTPUT_DIR}/alert_{awips_id}_{clean_alert_id}.png'
                 try:
-                    path, statement = plot_alert_polygon(alert, alert_path, True, alert_verb)
+                    plot_mrms = True #default to plotting radar
+                    no_mrms_list = ['Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory', 'Red Flag Warning']
+
+                    if event_type in no_mrms_list:
+                        plot_mrms = False
+                        
+                    path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
                     if path and statement:  # Ensure plotting was successful
                         if config.SEND_TO_SLIDESHOW and expiry_time_iso:
                             slideshow_queue.put((path, expiry_time_iso))
@@ -393,6 +402,10 @@ def main():
                             post_to_facebook(statement, alert_path)
                         if config.POST_TO_DISCORD:
                             log_to_discord(statement, alert_path)
+                        if config.POST_TO_INSTAGRAM_GRID:
+                            make_instagram_post(statement, alert_path, 'grid', ig_client)
+                        if config.POST_TO_INSTAGRAM_STORY:
+                            make_instagram_post(statement, alert_path, 'story', ig_client)
                         posted_alerts.add(alert_id)
                     else:
                         print(Back.YELLOW + f'Plotting failed for {alert_id}, will retry on next scan.' + Back.RESET)
@@ -407,6 +420,24 @@ for folder in required_folders:
     os.makedirs(folder, exist_ok= True)
 
 if __name__ == "__main__":
+    
+    parser = argparse.ArgumentParser(description= 'Insta-Alert CLI')
+    available_configs = config_manager.get_available_configs()
+    parser.add_argument(
+        "--config",
+        required=True,
+        type=str,
+        choices=available_configs, # This ensures only valid configs can be passed
+        help=f"The name of the configuration to use. Available: {', '.join(available_configs)}"
+    )
+    
+    args = parser.parse_args()
+    config_manager.load(args.config)
+    config = config_manager.config
+    #import things down here that need a populated config file
+    from polygonmaker import plot_alert_polygon
+    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+    
     try:
         if config.POST_TO_INSTAGRAM_GRID or config.POST_TO_INSTAGRAM_STORY:
             ig_client = instagram_login(os.getenv("IG_USER"), os.getenv("IG_PASS"))

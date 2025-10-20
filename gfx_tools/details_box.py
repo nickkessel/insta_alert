@@ -230,6 +230,9 @@ def get_hazard_details(alert, geom_type):
 
             hwwWind = wind_match.group(1) if wind_match else 'n/a'
             hwwGust = gust_match.group(1) if gust_match else 'n/a'
+            
+        if alert_type == 'Red Flag Warning':
+            fireWeatherThreat = 'Very High'
         
         hazard_details = [
             ('Max. Wind Gusts', maxWind, ''),

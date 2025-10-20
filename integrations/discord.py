@@ -1,10 +1,10 @@
 from colorama import Fore, Back
 from discord_webhook import DiscordWebhook, DiscordEmbed
-import config
+import config.test as test
 
 
 def log_to_discord(message, img_path):
-    webhook = DiscordWebhook(url=config.WEBHOOKS[0], content=message)
+    webhook = DiscordWebhook(url=test.WEBHOOKS[0], content=message)
     with open(img_path, 'rb') as f:
         webhook.add_file(file=f.read(), filename='Alert.png')
     try:
