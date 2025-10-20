@@ -124,7 +124,26 @@ normalized_stops4 = [
 # Create the colormap
 temp_cmap = LinearSegmentedColormap.from_list("Temp", normalized_stops4)
 
-MAX_CACHE_SIZE = 10 #how many mrms scans it holds in the cache before it starts deleting 
+stops5 = [ #emulating the gr2 p-typed snow color table
+    (0.0, (0, 0, 0, 0)),
+    (1, (172,172,255,255)),
+    (20.0, (64,64,255,255)),
+    (20.0, (201,142,255,255)),
+    (30.0, (133,18,255,255)),
+    (30.0, (220,2,220,255)),
+    (40.0, (254,124,254,255)),
+]
+
+min_val5 = stops5[0][0]
+max_val5 = stops5[-1][0]
+normalized_stops5 = [
+    ((level - min_val5) / (max_val5 - min_val5), tuple(c/255 for c in color))
+    for level, color in stops5
+]
+# Create the colormap
+snow_cmap = LinearSegmentedColormap.from_list("Snow", normalized_stops5)
+
+MAX_CACHE_SIZE = 5 #how many mrms scans it holds in the cache before it starts deleting 
 
 valid_time = 0
 #really just useful for testing
@@ -155,13 +174,13 @@ def save_mrms_subset(bbox, type, state_borders):
         cmap_to_use = qpe2_cmap
         data_min, data_max = min_val3, max_val3
         cbar_label = "Radar Estimated Precipitation (1h)"
-    elif type == 'Temp':
-        url = twomtemp_url
+    elif type == 'Snow':
+        url = ref_url
         convert_units = False
-        print("Temp")
-        cmap_to_use = temp_cmap
+        print("Snow")
+        cmap_to_use = snow_cmap
         data_min, data_max = min_val4, max_val4
-        cbar_label = "Surface Temperature (C)"
+        cbar_label = "Reflectivity - Snow (dBZ)"
     else:
         url = alaskaref_url
         convert_units = False
@@ -261,7 +280,7 @@ def save_mrms_subset(bbox, type, state_borders):
 mrms_cache = {}
 cache_lock = threading.Lock()
 #locks the thread so that other threads can't "look in" and try and access what its doing while its working
-def get_mrms_data_async(bbox, type, region):
+def get_mrms_data_async(bbox, type, region, ptype):
     """
     Fetches and subsets the latest MRMS data using a resilient, thread-safe,
     in-memory cache to improve speed and reliability.
@@ -283,12 +302,18 @@ def get_mrms_data_async(bbox, type, region):
         ref_url = "https://mrms.ncep.noaa.gov/2D/ReflectivityAtLowestAltitude/MRMS_ReflectivityAtLowestAltitude.latest.grib2.gz"
         qpe_url = "https://mrms.ncep.noaa.gov/2D/RadarOnly_QPE_01H/MRMS_RadarOnly_QPE_01H.latest.grib2.gz"
 
-    if type == "Flash Flood Warning" or type == "Flood Advisory" or type == "Flood Warning":
+    if type in [ "Flash Flood Warning", "Flood Advisory", "Flood Warning"]:
         url = qpe_url
         convert_units = True
         cmap_to_use = qpe2_cmap
         data_min, data_max = min_val3, max_val3
         cbar_label = "Radar Estimated Precipitation (1h) (in)"
+    elif ptype:
+        url = ref_url
+        convert_units = False
+        cmap_to_use = snow_cmap
+        data_min, data_max = min_val5, max_val5
+        cbar_label = "Reflectivity (Snow) (dBZ)"
     else:
         url = ref_url
         convert_units = False
@@ -460,10 +485,10 @@ if __name__ == '__main__':
         "lat_max": 40.155786
     }
     test_bbox = {
-        "lon_min": -76,
-        "lon_max": -66,
-        "lat_min": 40,
-        "lat_max": 45
+        "lon_min": -109.7,
+        "lon_max": -104.6,
+        "lat_min": 44.4,
+        "lat_max": 46.8
     }
 
-    save_mrms_subset(test_bbox, "Temp", True)
+    save_mrms_subset(test_bbox, "Snow", True)

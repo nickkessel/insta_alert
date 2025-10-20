@@ -34,7 +34,7 @@ import config_manager
 #TODO: rename project at some point
 
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-IS_TESTING = False # Set to True to use local files, False to run normally
+IS_TESTING = True # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -327,7 +327,7 @@ def main():
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
-            with open('test_alerts/tstmwatch.json', 'r') as f:
+            with open('test_alerts/mainsps.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
             alerts_stack = get_nws_alerts(warning_types)
@@ -393,6 +393,8 @@ def main():
 
                     if event_type in no_mrms_list:
                         plot_mrms = False
+                    else: 
+                        plot_mrms = True
                         
                     path, statement = plot_alert_polygon(alert, alert_path, plot_mrms, alert_verb)
                     if path and statement:  # Ensure plotting was successful

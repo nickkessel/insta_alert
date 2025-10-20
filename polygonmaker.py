@@ -51,7 +51,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.5'
+    VERSION_NUMBER = '0.7.8'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 
@@ -258,7 +258,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         use_snow_cmap = is_alert_winter(alert)
             
         if mrms_plot == True:
-            subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region)
+            subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region, use_snow_cmap)
             #directly plot the MRMS data onto the main axes (and colorbar, seperately)
             if subset is not None and subset.unknown.size > 0:
                 im = ax.pcolormesh(
@@ -293,7 +293,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             else:
                 print("skipping plotting radar, no data returned from get_mrms_data")
         else:
-            print('not plotting MRMS')
+            print('not plotting MRMS (recieved plot_mrms = False.)')
         
         #filter for only cities in map view
         visible_cities_df = cities_ds[

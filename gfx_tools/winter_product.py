@@ -17,10 +17,12 @@ def is_alert_winter(alert):
         return True
     elif alert_type == 'Special Weather Statement':
         description_text = alert['properties'].get('description', '').lower()
-        '''regex to check for winter stuff goes here
-        if regex finds winter stuff:
-            return true
+        #regex to check for winter stuff goes here
+        snow_pattern = r'\bSnow'
+        snow_match = re.search(snow_pattern, description_text)
+        if snow_match:
+            return True
         else:
-            return false
-        '''
+            return False
+        
     return False
