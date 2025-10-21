@@ -142,7 +142,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
             formatted_issued_time = dt_sent.strftime("%I:%M %p %Z")
             formatted_expiry_time = dt_expires.strftime("%B %d, %I:%M %p %Z")
-            print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+            print("now plotting:" + alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
         except Exception as e:
             print(Back.YELLOW + f'error getting timezone: [{e}] defaulting to UTC' + Back.RESET)
         
@@ -154,7 +154,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             dt1 = datetime.fromisoformat(issued_time)
             dt1_eastern = dt1.astimezone(eastern)
             formatted_issued_time = dt1_eastern.strftime("%I:%M %p %Z")
-            print(alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+            print("now plotting:" + alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
         
         #plot setup
         minx, _, maxx, _ = geom.bounds #ignore the lat, as its not relevant here

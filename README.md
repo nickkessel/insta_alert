@@ -1,5 +1,7 @@
 # warnings_on_fb 
-*11,402 (and counting) alerts generated*
+*13,029 (and counting) alerts generated!*
+![Static Badge](https://img.shields.io/badge/Supported%20Alerts%20-%2017-&color=%#0000ff)
+![Static Badge](https://img.shields.io/badge/Avg%20Time%20For%20Graphic%20Generation-%2025s-&color=%#0000ff)
 
 ---
 ## What it does:

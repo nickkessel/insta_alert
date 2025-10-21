@@ -34,7 +34,7 @@ import config_manager
 #TODO: rename project at some point
 
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-IS_TESTING = True # Set to True to use local files, False to run normally
+IS_TESTING = False # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -291,7 +291,7 @@ def main():
 
     while True:
         warning_types = config.ALERT_TYPES_TO_MONITOR
-        print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
+        #print(Fore.LIGHTCYAN_EX + 'Start scan for alerts' + Fore.RESET)
         
         # --- Stage 1: Prepare lists for the current scan cycle ---
         alerts_ready_to_process = []
@@ -387,11 +387,14 @@ def main():
             if ref_check_passed:
                 print(Fore.LIGHTBLUE_EX + f"Processing graphics for {alert_verb} alert: {clickable_alert_id}" + Fore.RESET)
                 alert_path = f'{config.OUTPUT_DIR}/alert_{awips_id}_{clean_alert_id}.png'
+                properties = alert.get("properties", {})
+                event_type = properties.get("event")
                 try:
                     plot_mrms = True #default to plotting radar
                     no_mrms_list = ['Dense Fog Advisory', 'Freeze Warning', 'Frost Advisory', 'Red Flag Warning']
 
                     if event_type in no_mrms_list:
+                        print(f'{event_type}, skipping mrms plotting')
                         plot_mrms = False
                     else: 
                         plot_mrms = True
@@ -403,7 +406,7 @@ def main():
                         if config.POST_TO_FACEBOOK:
                             post_to_facebook(statement, alert_path)
                         if config.POST_TO_DISCORD:
-                            log_to_discord(statement, alert_path)
+                            log_to_discord(statement, alert_path, config.WEBHOOKS)
                         if config.POST_TO_INSTAGRAM_GRID:
                             make_instagram_post(statement, alert_path, 'grid', ig_client)
                         if config.POST_TO_INSTAGRAM_STORY:
