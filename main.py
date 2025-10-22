@@ -34,7 +34,7 @@ import config_manager
 #TODO: rename project at some point
 
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-IS_TESTING = True # Set to True to use local files, False to run normally
+IS_TESTING = False # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -70,6 +70,11 @@ def get_nws_alerts(warning_types):
             total_alerts_processed += 1
             properties = alert["properties"]
             event_type = properties.get("event")
+            issuing_office = properties.get('senderName')
+            issuing_time_str = properties.get('sent')
+            local_dt = datetime.datetime.fromisoformat(issuing_time_str)
+            utc_dt = local_dt.astimezone(datetime.timezone.utc)
+            issuing_time = utc_dt.strftime("%m-%d %H:%Mz") #zulu time format
             affected_zones = properties.get("geocode", {}).get("UGC", [])
             geometry = alert.get("geometry")
 
@@ -99,7 +104,7 @@ def get_nws_alerts(warning_types):
                 
             target_zones_set = set(config.ACTIVE_ZONES)
             if event_type in warning_types and county_in_selected(affected_zones, target_zones_set): # and any_point_in_bbox(geometry, config.ACTIVE_BBOX) :
-                print(f"Matching alert found: {event_type}, Zones: {affected_zones}")
+                print("Matching alert found: " + Fore.YELLOW + f"{event_type} - " + Fore.MAGENTA + f"{issuing_office}" + Fore.RESET + f" at {issuing_time}")
                 filtered_alerts.append(alert)
             #else:
                 #print(f'{event_type} not in zone')
@@ -245,7 +250,6 @@ def check_if_alert_is_valid(alert):
     """
     properties = alert.get("properties", {})
     raw_desc = properties.get('description', '')
-    description_text = ' '.join(raw_desc.split()).lower()
     awips_id = properties['parameters'].get('AWIPSidentifier', ['ERROR'])[0]
     event_type = properties.get("event")
     clickable_alert_id = properties.get("@id")
@@ -266,7 +270,8 @@ def check_if_alert_is_valid(alert):
             return False
     
     #any other case, if desc text has something along the line of "will allow the Frost Advisory to expire" or "Flood watch will be allowed to expire"
-    if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning']:
+    if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning'] and len(raw_desc) > 2:
+        description_text = ' '.join(raw_desc.split()).lower()
         expired_pattern = r"(?i)\b(?:allow(?:ed|s)?(?: the [a-z ]+?)?|the [a-z ]+?(?: will(?: be)?(?: allowed to)?)?)\s+expire(?: at \d{1,2}(?::\d{2})?\s?(?:am|pm))?\b"
         expired_match = re.search(expired_pattern, description_text)
         if expired_match:
@@ -334,7 +339,7 @@ def main():
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
-            with open('test_alerts/tstmwatch.json', 'r') as f:
+            with open('test_alerts/downtowncincy.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
             alerts_stack = get_nws_alerts(warning_types)
@@ -384,9 +389,14 @@ def main():
             if references:
                 try:
                     ref_url = references[-1]['@id']
-                    ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
-                    ref_response.raise_for_status()
-                    ref_data = ref_response.json()
+                    if IS_TESTING: #testing for single local alert
+                        with open (ref_url, 'r') as f:
+                            ref_data = json.load(f)
+                    else:
+                        ref_response = requests.get(ref_url, headers={"User-Agent": "warnings_on_fb/kesse1ni@cmich.edu"})
+                        ref_response.raise_for_status()
+                        ref_data = ref_response.json()
+                        
                     ref_check_passed, alert_verb = are_alerts_different(alert, ref_data)
                 except Exception as e:
                     print(Fore.RED + f"Error processing reference for {clickable_alert_id}: {e}" + Fore.RESET)
