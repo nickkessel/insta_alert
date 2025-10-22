@@ -34,7 +34,7 @@ import config_manager
 #TODO: rename project at some point
 
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-IS_TESTING = False # Set to True to use local files, False to run normally
+IS_TESTING = True # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
 posted_alerts = set()
@@ -244,6 +244,8 @@ def check_if_alert_is_valid(alert):
     Returns True if the alert is valid for posting, False otherwise.
     """
     properties = alert.get("properties", {})
+    raw_desc = properties.get('description', '')
+    description_text = ' '.join(raw_desc.split()).lower()
     awips_id = properties['parameters'].get('AWIPSidentifier', ['ERROR'])[0]
     event_type = properties.get("event")
     clickable_alert_id = properties.get("@id")
@@ -262,13 +264,18 @@ def check_if_alert_is_valid(alert):
         if flood_detection == "n/a":
             print(Fore.RED + f"Check failed, FFW expired or cancelled: {clickable_alert_id}" + Fore.RESET)
             return False
-
-    # general expiration check, add alert types to list as I see them having issues w/ posting expired ones
-    if event_type in ['Flood Watch', 'Frost Advisory', 'Dense Fog Advisory', 'High Wind Warning'] and properties.get('urgency') == "Past":
-        print(Fore.RED + f"Check failed, {event_type} expired: {clickable_alert_id}" + Fore.RESET)
-        return False
     
-        
+    #any other case, if desc text has something along the line of "will allow the Frost Advisory to expire" or "Flood watch will be allowed to expire"
+    if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning']:
+        expired_pattern = r"(?i)\b(?:allow(?:ed|s)?(?: the [a-z ]+?)?|the [a-z ]+?(?: will(?: be)?(?: allowed to)?)?)\s+expire(?: at \d{1,2}(?::\d{2})?\s?(?:am|pm))?\b"
+        expired_match = re.search(expired_pattern, description_text)
+        if expired_match:
+            print(Fore.RED + f'Check failed, {event_type} expired (Regex fail)! {clickable_alert_id}' + Fore.RESET)
+            return False
+        elif properties.get('urgency') == 'Past': #not sure how many of these come through, but def don't want to post them
+            print(Fore.RED + f'Check failed, {event_type} expired (urgency = Past)! {clickable_alert_id}' + Fore.RESET)
+            return False
+    
     # If none of the cancellation conditions are met, the alert is valid.
     return True
 
@@ -327,7 +334,7 @@ def main():
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
-            with open('test_alerts/mainsps.json', 'r') as f:
+            with open('test_alerts/tstmwatch.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
             alerts_stack = get_nws_alerts(warning_types)

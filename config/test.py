@@ -15,14 +15,14 @@ CINCY_ZONES = [
 MMWX_ZONES = [
   'MIZ039', 'MIZ040', 'MIZ041', 'MIZ044', 'MIZ045', 'MIZ046', 'MIZ047', 'MIZ048', 'MIZ057', 'MIZ051', 'MIZ052', 'MIZ053', 'MIZ050', 'MIZ056', 'MIZ058', 'MIZ059', 'MIZ060', 'MIZ061', 'MIZ062', 'MIZ064', 'MIZ065', 'MIZ066', 'MIZ067', 'MIZ068', 'MIZ069', 'MIZ072', 'MIZ073', 'MIZ074', 'MIZ075','LMZ845', 'LMZ846', 'LMZ847', 'LMZ876', 'LMZ874', 'LMZ872', 'LHZ422', 'LHZ421'
 ]
-EVERYWHERE = False #polls for all alerts, ignores the active_zones flag
+EVERYWHERE = True #polls for all alerts, ignores the active_zones flag
 ACTIVE_ZONES = CINCY_ZONES #counties are w/ a C, marine zones w/ a Z
 
 # --- TARGETS ---
 # Set to True to enable posting, False to disable
 OUTPUT_DIR = 'graphics/live-test' #should be graphics/something
 POST_TO_FACEBOOK = False
-POST_TO_DISCORD = True
+POST_TO_DISCORD = False
 POST_TO_INSTAGRAM_GRID = False
 POST_TO_INSTAGRAM_STORY = False
 SEND_TO_SLIDESHOW = False 
@@ -35,4 +35,4 @@ WEBHOOKS = [new_logs, cincy_wx]
 
 # --- CAPTION ---
 DEFAULT_TAGS = '#weather #weatheralert #stayalert #wx'
-USE_TAGS = True
+USE_TAGS = False

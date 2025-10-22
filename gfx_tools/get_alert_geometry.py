@@ -36,7 +36,7 @@ def get_alert_geometry(alert):
     '''
     geometries = []
     print(f"Fetching geometries for {len(affected_zones)} zones...")
-    max_retries = 3
+    max_retries = 5
     for attempt in range(max_retries):
         for zone_url in affected_zones:
             if zone_url in zone_geometry_cache: # Check cache first to reduce API calls
@@ -60,6 +60,7 @@ def get_alert_geometry(alert):
                 print(Fore.RED + f"Failed to fetch geometry for zone {zone_url}: {e}. Attempt {attempt}, retrying." + Fore.RESET)
                 if attempt + 1 >= max_retries:
                     print(Back.RED + f"All download attempts ({max_retries}) failed" + Back.RESET)
+                    attempt += 1
                     continue
                 else:
                     time.sleep(2)

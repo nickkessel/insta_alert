@@ -212,8 +212,7 @@ def get_hazard_details(alert, geom_type):
                 if headline_text:
                     additionalHazard = headline_text
                 else:
-                    additionalHazard = 'See Statement for Details'
-                
+                    additionalHazard = 'See Statement for Details'          
 
         if alert_type == 'Dense Fog Advisory':
             denseFogThreat = 'Likely'

@@ -30,6 +30,7 @@ dist/
 /mrms_stuff
 /loggedAlerts
 /deprecatedortest
+/old_ex_graphics
 
 #deprecated/testing scripts and assets
 /plot_l3.py
