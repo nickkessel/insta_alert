@@ -13,7 +13,8 @@ def is_alert_winter(alert):
     """
     alert_type = alert['properties'].get("event")
  
-    if alert_type in ['Snow Squall Warning', 'Winter Storm Warning']:
+    if alert_type in ['Snow Squall Warning', 'Winter Storm Warning', 'Lake Effect Snow Warning']:
+        print(Fore.LIGHTBLUE_EX + 'Winter Product identified, using snow cmap' + Fore.RESET)
         return True
     elif alert_type == 'Special Weather Statement':
         description_text = alert['properties'].get('description', '').lower()
@@ -21,6 +22,7 @@ def is_alert_winter(alert):
         snow_pattern = r'\bSnow'
         snow_match = re.search(snow_pattern, description_text)
         if snow_match:
+            print(Fore.LIGHTBLUE_EX + 'Winter SPS identified, using snow cmap' + Fore.RESET)
             return True
         else:
             return False

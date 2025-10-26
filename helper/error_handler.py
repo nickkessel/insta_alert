@@ -1,5 +1,5 @@
 import traceback
-import config.test as test
+from config_manager import config
 import datetime
 from discord_webhook import DiscordWebhook
 from colorama import Fore
@@ -13,7 +13,7 @@ def report_error(error: Exception, context: str):
         timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
 
         # Build mention strings
-        mention_roles = getattr(test, "DISCORD_PINGS_ALL", [])
+        mention_roles = getattr(config, "DISCORD_PINGS_ALL", [])
 
         mentions_text = ' '.join(
             [f"<@&{role}>" for role in mention_roles]
@@ -43,7 +43,7 @@ def report_error(error: Exception, context: str):
 
         # Directly send the webhook POST
         response = requests.post(
-            test.ERROR_WEBHOOK,
+            config.ERROR_WEBHOOK,
             data=json.dumps(payload),
             headers= headers
         )

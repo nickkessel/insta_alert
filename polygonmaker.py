@@ -9,6 +9,7 @@ from math import hypot
 from matplotlib.offsetbox import AnchoredText, OffsetImage, AnnotationBbox
 import matplotlib.image as mpimg
 import matplotlib.patheffects as PathEffects
+import matplotlib.font_manager as fm
 import geopandas as gpd
 import time
 from colorama import Back, Fore, Style
@@ -16,7 +17,7 @@ from plot_mrms2 import get_mrms_data_async
 from timezonefinderL import TimezoneFinder
 import gc
 import json
-from config_manager import config
+from config_manager import config #diasble for testing w/ just this script
 from constants import ALERT_COLORS
 from gfx_tools.details_box import get_hazard_details
 from gfx_tools.get_alert_geometry import get_alert_geometry
@@ -51,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.11'
+    VERSION_NUMBER = '0.7.12'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 
@@ -59,29 +60,53 @@ print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 start_time = time.time()
 tf = TimezoneFinder()
 
+#font loading
+try:
+    # Point to the specific .ttf files
+    FP_XLIGHT = fm.FontProperties(fname='assets/fonts/Roboto-ExtraLight.ttf')
+    FP_LIGHT = fm.FontProperties(fname='assets/fonts/Roboto-Light.ttf')
+    FP_REGULAR = fm.FontProperties(fname='assets/fonts/Roboto-Regular.ttf')
+    FP_MEDIUM = fm.FontProperties(fname='assets/fonts/Roboto-Medium.ttf')
+    FP_SEMIBOLD = fm.FontProperties(fname='assets/fonts/Roboto-SemiBold.ttf')
+    FP_BOLD = fm.FontProperties(fname='assets/fonts/Roboto-Bold.ttf')
+    FP_XBOLD = fm.FontProperties(fname='assets/fonts/Roboto-ExtraBold.ttf')
+    print(Back.GREEN + "Custom fonts loaded successfully from 'assets/fonts/'" + Back.RESET)
+except FileNotFoundError:
+    print(Back.YELLOW + "Font files not found in 'assets/fonts/'. Falling back to default sans-serif." + Back.RESET)
+    # Fallback to default if fonts aren't found
+    FP_REGULAR = fm.FontProperties(family='sans-serif', weight='normal')
+    FP_MEDIUM = fm.FontProperties(family='sans-serif', weight='normal') # Will look like regular
+    FP_SEMIBOLD = fm.FontProperties(family='sans-serif', weight='semibold') # Might just look bold
+except Exception as e:
+    print(Back.RED + f"Error loading fonts: {e}. Falling back to default." + Back.RESET)
+    # Generic fallback
+    FP_REGULAR = fm.FontProperties(family='sans-serif', weight='normal')
+    FP_MEDIUM = fm.FontProperties(family='sans-serif', weight='normal')
+    FP_SEMIBOLD = fm.FontProperties(family='sans-serif', weight='semibold')
+
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 #cities w/pop >250
-conus_cities_ds = pd.read_csv('gis/cities_100_lite.csv')
-ak_cities_ds = pd.read_csv('gis/ak_cities.csv')
+conus_cities_ds = pd.read_csv('assets/gis/cities_100_lite.csv')
+ak_cities_ds = pd.read_csv('assets/gis/ak_cities.csv')
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
-logo_path= 'logo2.png'
+logo_path= 'assets/logo2.png'
 logo = mpimg.imread(logo_path)
 
 print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + Back.RESET)
 # Load the two layers from the single, pre-processed gpkg file.
-counties_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='counties')
-states_gdf = gpd.read_file("gis/processed_borders_500k.gpkg", layer='states')
+counties_gdf = gpd.read_file("assets/gis/processed_borders_500k.gpkg", layer='counties')
+states_gdf = gpd.read_file("assets/gis/processed_borders_500k.gpkg", layer='states')
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading water features.' + Back.RESET)
 
-lakes4km = gpd.read_file("gis/water/lakes_4km_compressed.fgb")
-lakes15km = gpd.read_file('gis/water/lakes_15km_compressed.fgb')
-oceans = gpd.read_file("gis/water/water_background.fgb")
+lakes4km = gpd.read_file("assets/gis/water/lakes_4km_compressed.fgb")
+lakes15km = gpd.read_file('assets/gis/water/lakes_15km_compressed.fgb')
+oceans = gpd.read_file("assets/gis/water/water_background.fgb")
 
 print(Back.LIGHTWHITE_EX + 'Water features loaded. Loading roads.' + Back.RESET)
-interstates = gpd.read_file("gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
-us_highways = gpd.read_file('gis/all_us_highways_10tol.fgb') #us highways for conus and state highways for ak/hi. dataset does not have us/state highways equivalents for PR...
+interstates = gpd.read_file("assets/gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
+us_highways = gpd.read_file('assets/gis/all_us_highways_10tol.fgb') #us highways for conus and state highways for ak/hi. dataset does not have us/state highways equivalents for PR...
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')
@@ -142,7 +167,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         
             formatted_issued_time = dt_sent.strftime("%I:%M %p %Z")
             formatted_expiry_time = dt_expires.strftime("%B %d, %I:%M %p %Z")
-            print("now plotting:" + alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
+            print("now plotting: " + alert_type + " issued " + formatted_issued_time + " expires " + formatted_expiry_time )
         except Exception as e:
             print(Back.YELLOW + f'error getting timezone: [{e}] defaulting to UTC' + Back.RESET)
         
@@ -331,40 +356,41 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             
             #now, actually plot city
             scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".", zorder = 5) #city marker icons
+            
             if city_pop > 60000:
                 name = city['city_ascii'] #.upper()
-                fontsize = 12
-                weight = 'semibold'
+                font_props = FP_XBOLD.copy() 
+                font_props.set_size(13)
+                print(f'{name} 60k+')
                 color = "#101010"
                 bgcolor = '#ffffff00'
             elif city_pop > 10000:
                 name = city['city_ascii']
-                fontsize = 11
-                weight = 'normal'
+                font_props = FP_SEMIBOLD.copy() 
+                font_props.set_size(11)
                 color = "#101010"
                 bgcolor = "#ffffff00"
             elif city_pop > 1000:
                 name = city['city_ascii']
-                fontsize = 9
-                weight = 'normal'
+                font_props = FP_MEDIUM.copy() 
+                font_props.set_size(10)
                 color = "#101010"
                 bgcolor = '#ffffff00'
             else:
                 name = city['city_ascii']
-                fontsize = 8
-                weight = 'normal'
+                font_props = FP_REGULAR.copy() 
+                font_props.set_size(8)
                 color = "#232323"
                 bgcolor = '#ffffff00'
 
             text_artist = ax.text(
-                city_x, city_y, name,
-                fontfamily='sans-serif', fontsize=fontsize, weight=weight,
-                fontstretch='ultra-condensed', ha='center', va='bottom',
+                city_x, city_y, name,  
+                fontproperties = font_props, fontstretch='normal', ha='center', va='bottom',
                 c=color, transform=ccrs.PlateCarree(), clip_on=True,
                 backgroundcolor=bgcolor, zorder = 5
             )
             text_artist.set_clip_box(clip_box)
-            text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.25, foreground='white'), PathEffects.Normal()])
+            text_artist.set_path_effects([PathEffects.withStroke(linewidth=1.45, foreground='white'), PathEffects.Normal()])
             text_candidates.append((text_artist, scatter, city_x, city_y, city['city_ascii'], city_state, city_pop))
             plotted_points.append((city_x, city_y))
         
@@ -497,8 +523,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         else: 
             punc = "."
         statement = f'''{alert_type} {alert_verb}, including {area_desc}{punc} This alert is in effect until {formatted_expiry_time}{punc}\n{desc} '''
-        if config.USE_TAGS:
-            statement += config.DEFAULT_TAGS
+        #if config.USE_TAGS:
+         #   statement += config.DEFAULT_TAGS
         #print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time
@@ -513,7 +539,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         gc.collect()
 
 if __name__ == '__main__': 
-    with open('test_alerts/alaskasps.json', 'r') as file: 
+    with open('test_alerts/spstesttext.json', 'r') as file: 
         print(Back.YELLOW + Fore.BLACK + 'testing mode! (local files)' + Style.RESET_ALL)
         test_alert = json.load(file) 
-    plot_alert_polygon(test_alert, 'graphics/test/badsps1', False, 'issued')
+    plot_alert_polygon(test_alert, 'graphics/test/text1', True, 'issued')

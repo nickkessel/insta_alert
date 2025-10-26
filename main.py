@@ -17,7 +17,8 @@ from integrations.instagram import  make_instagram_post, instagram_login
 from integrations.discord import log_to_discord
 from integrations.facebook import post_to_facebook
 from gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
-from error_handler import report_error
+from helper.logging import load_posted_alerts, save_posted_alert
+from helper.error_handler import report_error
 import ijson
 import gzip
 load_dotenv()
@@ -37,7 +38,7 @@ NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
 IS_TESTING = False # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
-posted_alerts = set()
+
 start_time = time.time()
 
 #handle convective watches
@@ -45,7 +46,7 @@ delayed_watches = []
 queued_watch_ids = set()
 WATCH_DELAY_TIME = 800 #seconds, should not take this long for watchCanBePlotted to come true, so if this qualifier hits, its a fallback as we don't want to wait much longer to post the watch
 
-required_folders = ['graphics']
+required_folders = ['graphics', 'logs']
 
 def get_nws_alerts(warning_types):
     """Gets NWS Alerts from the API
@@ -249,7 +250,7 @@ def check_if_alert_is_valid(alert):
     Returns True if the alert is valid for posting, False otherwise.
     """
     properties = alert.get("properties", {})
-    raw_desc = properties.get('description', '')
+    raw_desc = properties.get('description') or ''
     awips_id = properties['parameters'].get('AWIPSidentifier', ['ERROR'])[0]
     event_type = properties.get("event")
     clickable_alert_id = properties.get("@id")
@@ -270,7 +271,7 @@ def check_if_alert_is_valid(alert):
             return False
     
     #any other case, if desc text has something along the line of "will allow the Frost Advisory to expire" or "Flood watch will be allowed to expire"
-    if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning'] and len(raw_desc) > 2:
+    if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning'] and raw_desc is not None and len(raw_desc) > 2:
         description_text = ' '.join(raw_desc.split()).lower()
         expired_pattern = r"(?i)\b(?:allow(?:ed|s)?(?: the [a-z ]+?)?|the [a-z ]+?(?: will(?: be)?(?: allowed to)?)?)\s+expire(?: at \d{1,2}(?::\d{2})?\s?(?:am|pm))?\b"
         expired_match = re.search(expired_pattern, description_text)
@@ -291,10 +292,12 @@ def main():
     Main loop to fetch, process, and post weather alerts.
     This version uses a more robust, multi-stage logic to handle watch delays correctly.
     """
+    global posted_alerts
+    posted_alerts = load_posted_alerts(config.LOG_FILE)
     slideshow_queue = None
     if config.SEND_TO_SLIDESHOW:
         slideshow_queue = queue.Queue()
-        from slideshow import run_slideshow
+        from integrations.slideshow import run_slideshow
         slideshow_thread = threading.Thread(
             target=run_slideshow, args=(slideshow_queue,), daemon=True
         )
@@ -339,7 +342,7 @@ def main():
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
-            with open('test_alerts/downtowncincy.json', 'r') as f:
+            with open('test_alerts/lakeeffect.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
             alerts_stack = get_nws_alerts(warning_types)
@@ -375,6 +378,7 @@ def main():
 
             # Check for cancellations (SVR, FFW, etc.)
             if not check_if_alert_is_valid(alert):
+                save_posted_alert(alert_id, config.LOG_FILE)
                 posted_alerts.add(alert_id) # Mark cancelled alert as "handled"
                 continue
 
@@ -428,7 +432,9 @@ def main():
                             make_instagram_post(statement, alert_path, 'grid', ig_client)
                         if config.POST_TO_INSTAGRAM_STORY:
                             make_instagram_post(statement, alert_path, 'story', ig_client)
+                        #add to both the local set() and the persistent set() for use across sessions
                         posted_alerts.add(alert_id)
+                        save_posted_alert(alert_id, config.LOG_FILE)
                     else:
                         print(Back.YELLOW + f'Plotting failed for {alert_id}, will retry on next scan.' + Back.RESET)
                 except Exception as e:

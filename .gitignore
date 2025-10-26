@@ -31,6 +31,7 @@ dist/
 /loggedAlerts
 /deprecatedortest
 /old_ex_graphics
+/logs
 
 #deprecated/testing scripts and assets
 /plot_l3.py
