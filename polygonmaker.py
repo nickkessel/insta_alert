@@ -52,7 +52,7 @@ ZORDER STACK
 try:    
     VERSION_NUMBER = importlib.metadata.version('insta-alert') #Major version (dk criteria for this) Minor version (pushes to stable branch) Feature version (each push to dev branch)
 except importlib.metadata.PackageNotFoundError:
-    VERSION_NUMBER = '0.7.12'
+    VERSION_NUMBER = '0.7.13'
     
 print(Back.BLUE + f'Running graphics v{VERSION_NUMBER}' + Back.RESET)
 
@@ -280,7 +280,7 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         else:
             region = 'US'
             
-        use_snow_cmap = is_alert_winter(alert)
+        use_snow_cmap = is_alert_winter(alert, centerlat, centerlon) #pass center lat/lon now so we dont have to do the same calc twice
             
         if mrms_plot == True:
             subset, cmap, vmin, vmax, cbar_label, radar_valid_time = get_mrms_data_async(map_region2, alert_type, region, use_snow_cmap)
@@ -360,26 +360,26 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             if city_pop > 60000:
                 name = city['city_ascii'] #.upper()
                 font_props = FP_XBOLD.copy() 
-                font_props.set_size(13)
+                font_props.set_size(14)
                 print(f'{name} 60k+')
                 color = "#101010"
                 bgcolor = '#ffffff00'
             elif city_pop > 10000:
                 name = city['city_ascii']
-                font_props = FP_SEMIBOLD.copy() 
-                font_props.set_size(11)
+                font_props = FP_MEDIUM.copy() 
+                font_props.set_size(12)
                 color = "#101010"
                 bgcolor = "#ffffff00"
             elif city_pop > 1000:
                 name = city['city_ascii']
-                font_props = FP_MEDIUM.copy() 
-                font_props.set_size(10)
+                font_props = FP_REGULAR.copy() 
+                font_props.set_size(11)
                 color = "#101010"
                 bgcolor = '#ffffff00'
             else:
                 name = city['city_ascii']
-                font_props = FP_REGULAR.copy() 
-                font_props.set_size(8)
+                font_props = FP_LIGHT.copy() 
+                font_props.set_size(10)
                 color = "#232323"
                 bgcolor = '#ffffff00'
 
