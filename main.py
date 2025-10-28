@@ -35,7 +35,7 @@ import config_manager
 #TODO: rename project at some point
 
 NWS_ALERTS_URL = "https://api.weather.gov/alerts/active"
-IS_TESTING = True # Set to True to use local files, False to run normally
+IS_TESTING = False # Set to True to use local files, False to run normally
 
 # Store already posted alerts to prevent duplicates
 
@@ -273,7 +273,7 @@ def check_if_alert_is_valid(alert):
     #any other case, if desc text has something along the line of "will allow the Frost Advisory to expire" or "Flood watch will be allowed to expire"
     if event_type not in ['Severe Thunderstorm Warning', 'Flash Flood Warning'] and raw_desc is not None and len(raw_desc) > 2:
         description_text = ' '.join(raw_desc.split()).lower()
-        expired_pattern = r"(?i)\b(?:allow(?:ed|s)?(?: the [a-z ]+?)?|the [a-z ]+?(?: will(?: be)?(?: allowed to)?)?)\s+expire(?: at \d{1,2}(?::\d{2})?\s?(?:am|pm))?\b"
+        expired_pattern = r"(?i)\b(?:allow(?:ed|s)?(?: the [a-z ]+?)?|the [a-z ]+?(?: will(?: be)?(?: allowed to)?)?|the threat(?: for [a-z ]+?)?)\s+(?:expire(?: at \d{1,2}(?::\d{2})?\s?(?:am|pm))?|has ended)\b"        
         expired_match = re.search(expired_pattern, description_text)
         if expired_match:
             print(Fore.RED + f'Check failed, {event_type} expired (Regex fail)! {clickable_alert_id}' + Fore.RESET)

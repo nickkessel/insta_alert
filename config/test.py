@@ -4,7 +4,7 @@
 from constants import SEVERE, WATCHES, WINTER, OTHER, ALL
 
 ALERT_TYPES_TO_MONITOR = (
-    ALL
+    'Special Weather Statement'
 )
 LOG_FILE = 'logs/posted_alerts_test.log'
 # --- BOUNDING ZONES --- 

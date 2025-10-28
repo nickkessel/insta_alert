@@ -18,7 +18,7 @@ def is_alert_winter(alert, centerlat, centerlon):
         boolean: if it deals with winter weather
     """
     alert_type = alert['properties'].get("event")
-    print(centerlat, centerlon)
+    #print(centerlat, centerlon)
  
     if alert_type in ['Snow Squall Warning', 'Winter Storm Warning', 'Lake Effect Snow Warning']:
         print(Fore.LIGHTBLUE_EX + 'Winter Product identified, using snow cmap' + Fore.RESET)
@@ -33,7 +33,7 @@ def is_alert_winter(alert, centerlat, centerlon):
            
             snow_pattern = r'\bsnow'  #regex to check for winter stuff goes here. need more
             snow_match = re.search(snow_pattern, description_text)
-            if snow_match and station_temp < 5.0:
+            if snow_match and station_temp < 5.0: #colder than 5c and theres snow match? winter it...
                 print(Fore.LIGHTBLUE_EX + 'Winter SPS identified by regex and METAR, using snow cmap' + Fore.RESET)
                 return True
             else:

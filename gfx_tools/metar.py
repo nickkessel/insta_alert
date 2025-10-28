@@ -76,7 +76,7 @@ def get_station_temp(sid):
         float: temperature in Celsius
     """    
     STATION_URL = METAR_URL + f'{sid}/observations/latest'
-    print(STATION_URL)
+    #print(STATION_URL)
     station_temp = 0.0
     try:
         response = requests.get(STATION_URL, headers={"User-Agent": "weather-alert-bot"})
@@ -86,19 +86,23 @@ def get_station_temp(sid):
         return 0.0 #really normal winter temp so it just counts this part of the check as true
     data = response.json().get("properties", [])
     
-    report_time = data.get('timestamp', [])
-    report_time = datetime.fromisoformat(report_time)
-    #print(report_time)
-    current_time_utc = datetime.now(timezone.utc)
-    threshold = timedelta(minutes=90) #can adjust to permit older or newer reports
-    time_difference = current_time_utc - report_time
-    is_older = time_difference > threshold #bool
-    if not is_older:
-        station_temp = data.get('temperature', 0.0).get('value', 0.0)
-        #print(station_temp)
-        return station_temp
-    else:
-        print(f'METAR: data for station {sid} was older than the threshold {threshold}. Returning dummy value.')
-        return 0.0
+    try:
+        report_time = data.get('timestamp', [])
+        report_time = datetime.fromisoformat(report_time)
+        #print(report_time)
+        current_time_utc = datetime.now(timezone.utc)
+        threshold = timedelta(minutes=90) #can adjust to permit older or newer reports
+        time_difference = current_time_utc - report_time
+        is_older = time_difference > threshold #bool
+        if not is_older:
+            station_temp = data.get('temperature', 0.0).get('value', 0.0)
+            #print(station_temp)
+            return station_temp
+        else:
+            print(f'METAR: data for station {sid} was older than the threshold {threshold}. Returning dummy value.')
+            return 0.0
+    except Exception as e:
+        print(Fore.RED + f'Error: {e} while getting info from the station. Perhaps {sid}: {STATION_URL} is not in the NWS API?' + Fore.RESET)
+        return Exception
     
 #get_station_temp('KMOP')
