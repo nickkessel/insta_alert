@@ -4,9 +4,9 @@
 from constants import SEVERE, WATCHES, WINTER, OTHER, ALL
 
 ALERT_TYPES_TO_MONITOR = (
-    'Special Weather Statement'
+    'Freeze Warning'
 )
-LOG_FILE = 'logs/posted_alerts_test.log'
+LOG_FILE = 'logs/posted_alerts_test1.log'
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 

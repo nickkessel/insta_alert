@@ -230,13 +230,17 @@ def are_alerts_different(new_alert, ref_alert):
         # Compare by checking if the set of affected zones (UGC codes) is identical
         new_ugc = set(new_alert['properties']['geocode'].get('UGC', []))
         ref_ugc = set(ref_alert['properties']['geocode'].get('UGC', []))
-        
+        #print(f'New alert UGC: {new_ugc} \nRef aler UGC: {ref_ugc}')
         if new_ugc == ref_ugc:
             print("Affected zones (UGC) are the same. This is a duplicate update.")
             return False, ''
         else:
-            print("Affected zones (UGC) have changed.")
-            return True, 'continued'
+            if alert_type in ['Freeze Warning', 'Frost Advisory']: #have been having issues with these posting too much, not super important, so just won't post continuations
+                #print('Different UGC, but not posting due to issues with Freeze/Frost zones and posting too much.')
+                return False, ''
+            else:
+                print("Affected zones (UGC) have changed.")
+                return True, 'continued'
 
     # Case 3: Mixed types (one is polygon, one is zone). Treat as different.
     else:
@@ -439,6 +443,8 @@ def main():
                         print(Back.YELLOW + f'Plotting failed for {alert_id}, will retry on next scan.' + Back.RESET)
                 except Exception as e:
                     print(Back.RED + f'CRITICAL ERROR during plotting of {alert_id}: {e}' + Back.RESET)
+            else: 
+                print(Fore.YELLOW + f'Ref check failed, {clickable_alert_id} is a duplicate/downgrade. No plot.' + Fore.RESET)
 
         print(Fore.LIGHTCYAN_EX + f'End scan. {len(delayed_watches)} watches in queue. Rescan in {check_time}s' + Fore.RESET)
         time.sleep(check_time)
