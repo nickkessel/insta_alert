@@ -1,6 +1,6 @@
 from colorama import Fore, Back
 from discord_webhook import DiscordWebhook, DiscordEmbed
-from config_manager import config
+from insta_alert.config_manager import config
 
 def log_to_discord(message, img_path, webhooks):
     for hook in webhooks:

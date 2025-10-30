@@ -1,7 +1,7 @@
 ## Cincy weather domain
 # --- API POLLING SETTINGS ---
 # Define categories for alert types
-from constants import SEVERE, WATCHES, WINTER, OTHER, ALL
+from insta_alert.utils.constants import SEVERE, WATCHES, WINTER, OTHER, ALL
 
 ALERT_TYPES_TO_MONITOR = (
     ALL

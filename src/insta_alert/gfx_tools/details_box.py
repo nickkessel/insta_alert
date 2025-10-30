@@ -5,7 +5,7 @@ if __name__ == '__main__': #handle for different places the script is called fro
     from watch_attributes import get_watch_attributes, get_watch_number
     #from get_alert_geometry import get_alert_geometry
 else:
-    from gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
+    from .watch_attributes import get_watch_attributes, get_watch_number
     #from gfx_tools.get_alert_geometry import get_alert_geometry
 
 def get_hazard_details(alert, geom_type):

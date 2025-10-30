@@ -5,7 +5,6 @@ print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 1' + Fore.RESET + Back.RESET)
 from shapely.geometry import shape
 import requests
 import json
-import requests
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 2' + Fore.RESET + Back.RESET)
 import re
 import os
@@ -13,20 +12,20 @@ from dotenv import load_dotenv
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
 import threading #slideshow
 import queue #slideshow
-from integrations.instagram import  make_instagram_post, instagram_login
-from integrations.discord import log_to_discord
-from integrations.facebook import post_to_facebook
-from gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
-from helper.logging import load_posted_alerts, save_posted_alert
-from helper.error_handler import report_error
+from .integrations.instagram import  make_instagram_post, instagram_login
+from .integrations.discord import log_to_discord
+from .integrations.facebook import post_to_facebook
+from .gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
+from .utils.logging import load_posted_alerts, save_posted_alert
+from .utils.error_handler import report_error
 import ijson
 import gzip
 load_dotenv()
 load_done_time = time.time() - load_time
-print(Back.GREEN + Fore.BLACK + f'imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
+print(Back.GREEN + Fore.BLACK + f'Base imports imported succesfully {load_done_time:.2f}s' + Fore.RESET + Back.RESET)
 
 import argparse
-import config_manager
+import insta_alert.config_manager as config_manager
 
 
 #CHANGES: Added Discord Webhook sending support; Added toggles to enable/disable sending to Facebook/Discord; Added toggle to enable/disable use of test bbox; Moved the DAMN colorbar;
@@ -57,7 +56,7 @@ def get_nws_alerts(warning_types):
     """    
     print(Fore.CYAN + f'Beginning monitoring of {NWS_ALERTS_URL} at {datetime.datetime.now(datetime.timezone.utc).strftime("%H:%M:%Sz %m/%d")}' + Fore.RESET)
     try:
-        response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"}, stream = True)
+        response = requests.get(NWS_ALERTS_URL, headers={"User-Agent": "weather-alert-bot"}, stream = True, timeout = (10,60))
         response.raise_for_status()
         #alerts = response.json().get("features", [])
         #handle alerts 1 by 1 in a stream, decompressing each file as you go
@@ -469,7 +468,7 @@ if __name__ == "__main__":
     config_manager.load(args.config)
     config = config_manager.config
     #import things down here that need a populated config file
-    from polygonmaker import plot_alert_polygon
+    from insta_alert.gfx_tools.polygonmaker import plot_alert_polygon
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
     
     try:

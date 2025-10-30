@@ -13,15 +13,15 @@ import matplotlib.font_manager as fm
 import geopandas as gpd
 import time
 from colorama import Back, Fore, Style
-from plot_mrms2 import get_mrms_data_async
+from insta_alert.gfx_tools.plot_mrms2 import get_mrms_data_async
 from timezonefinderL import TimezoneFinder
 import gc
 import json
-from config_manager import config #diasble for testing w/ just this script
-from constants import ALERT_COLORS
-from gfx_tools.details_box import get_hazard_details
-from gfx_tools.get_alert_geometry import get_alert_geometry
-from gfx_tools.winter_product import is_alert_winter
+from insta_alert.config_manager import config #diasble for testing w/ just this script
+from insta_alert.utils.constants import ALERT_COLORS
+from .details_box import get_hazard_details #these can all be RELATIVE imports bc they are all in gfx_tools.
+from .get_alert_geometry import get_alert_geometry
+from .winter_product import is_alert_winter
 import importlib.metadata
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
@@ -356,12 +356,17 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
             
             #now, actually plot city
             scatter = ax.scatter(city_x, city_y, transform = ccrs.PlateCarree(), color='black', s = 1.5, marker = ".", zorder = 5) #city marker icons
-            
-            if city_pop > 60000:
+            if city_pop > 250000:
+                name = city['city_ascii'].upper()
+                font_props = FP_XBOLD.copy()
+                font_props.set_size(15)
+                color = '#101010'
+                bgcolor = '#ffffff00'
+            elif city_pop > 60000:
                 name = city['city_ascii'] #.upper()
                 font_props = FP_XBOLD.copy() 
                 font_props.set_size(14)
-                print(f'{name} 60k+')
+                #print(f'{name} 60k+')
                 color = "#101010"
                 bgcolor = '#ffffff00'
             elif city_pop > 10000:
@@ -523,8 +528,8 @@ def plot_alert_polygon(alert, output_path, mrms_plot, alert_verb):
         else: 
             punc = "."
         statement = f'''{alert_type} {alert_verb}, including {area_desc}{punc} This alert is in effect until {formatted_expiry_time}{punc}\n{desc} '''
-        #if config.USE_TAGS:
-         #   statement += config.DEFAULT_TAGS
+        if config.USE_TAGS:
+            statement += config.DEFAULT_TAGS
         #print(statement)
         elapsed_plot_time = time.time() - plot_start_time
         elapsed_total_time = time.time() - start_time

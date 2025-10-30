@@ -12,7 +12,7 @@ def load(config_name: str):
     """    
     global config
     try:
-        module_path = f'config.{config_name}'
+        module_path = f'insta_alert.config.{config_name}'
         config = importlib.import_module(module_path)
         print(Back.LIGHTGREEN_EX + f'Success loading config: {config_name}' + Back.RESET)
     except ImportError:
@@ -31,6 +31,7 @@ def get_available_configs():
         list: A list of available config files
     """    
     config_dir = os.path.join(os.path.dirname(__file__), 'config')
+    #print(config_dir)
     if not os.path.exists(config_dir):
         print('error in getting config directory!! Are you sure directory: config exists?')
         return []

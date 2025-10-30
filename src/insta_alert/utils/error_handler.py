@@ -1,5 +1,5 @@
 import traceback
-from config_manager import config
+from insta_alert.config_manager import config
 import datetime
 from discord_webhook import DiscordWebhook
 from colorama import Fore

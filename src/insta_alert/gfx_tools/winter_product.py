@@ -3,7 +3,7 @@ from colorama import Fore, Back
 if __name__ == '__main__':
     from metar import build_kdtree, get_nearest_station, get_station_temp
 else: 
-    from gfx_tools.metar import build_kdtree, get_nearest_station, get_station_temp
+    from .metar import build_kdtree, get_nearest_station, get_station_temp
 
 def is_alert_winter(alert, centerlat, centerlon):
     """Evaluates if a given alert deals with winter weather.

@@ -10,6 +10,7 @@
 #virtual environments
 /venv
 /.venv
+/poetry.lock
 
 #secrets
 /.env
