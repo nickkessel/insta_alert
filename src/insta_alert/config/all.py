@@ -6,6 +6,8 @@ from insta_alert.utils.constants import SEVERE, WATCHES, WINTER, OTHER, ALL
 ALERT_TYPES_TO_MONITOR = (
     ALL
 )
+LOG_FILE = 'logs/posted_alerts_all.log'
+
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 
@@ -25,7 +27,7 @@ POST_TO_FACEBOOK = False
 POST_TO_DISCORD = True
 POST_TO_INSTAGRAM_GRID = False
 POST_TO_INSTAGRAM_STORY = False
-SEND_TO_SLIDESHOW = True 
+SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
 DISCORD_PINGS_ALL = ['1427050976732254300'] #role to mention for all errors
 ERROR_WEBHOOK = 'https://discord.com/api/webhooks/1427040206476808334/N3MzXEbasGKIcFcQ5bJZtQ3sExmzGp1Z-lFBxXXbK2MGe7FkdQtphwR0qleTP8lejZkn'

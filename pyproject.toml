@@ -1,6 +1,6 @@
 [project]
 name = "insta-alert"
-version = "0.8.0"
+version = "0.8.1"
 description = "generate graphics based on NWS alerts and send them to endpoints"
 authors = [
     {name = "nick", email = "kessel1ni@cmich.edu"}

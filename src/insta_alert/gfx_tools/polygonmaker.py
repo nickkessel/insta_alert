@@ -23,6 +23,8 @@ from .details_box import get_hazard_details #these can all be RELATIVE imports b
 from .get_alert_geometry import get_alert_geometry
 from .winter_product import is_alert_winter
 import importlib.metadata
+from importlib import resources
+from insta_alert import assets
 
 #DONE: set color "library" of sorts for the colors associated with each warning type, to unify between the gfx bg and the polygons
 #DONE: figure out way to seperate the colorbar from the imagery in the plot stack, so the colorbar plots on top of
@@ -62,15 +64,21 @@ tf = TimezoneFinder()
 
 #font loading
 try:
-    # Point to the specific .ttf files
-    FP_XLIGHT = fm.FontProperties(fname='assets/fonts/Roboto-ExtraLight.ttf')
-    FP_LIGHT = fm.FontProperties(fname='assets/fonts/Roboto-Light.ttf')
-    FP_REGULAR = fm.FontProperties(fname='assets/fonts/Roboto-Regular.ttf')
-    FP_MEDIUM = fm.FontProperties(fname='assets/fonts/Roboto-Medium.ttf')
-    FP_SEMIBOLD = fm.FontProperties(fname='assets/fonts/Roboto-SemiBold.ttf')
-    FP_BOLD = fm.FontProperties(fname='assets/fonts/Roboto-Bold.ttf')
-    FP_XBOLD = fm.FontProperties(fname='assets/fonts/Roboto-ExtraBold.ttf')
-    print(Back.GREEN + "Custom fonts loaded successfully from 'assets/fonts/'" + Back.RESET)
+    # Base path to fonts inside the package
+    def font_path(filename: str):
+        # returns a str path usable by FontProperties
+        with resources.as_file(resources.files(assets).joinpath(f"fonts/{filename}")) as f:
+            return str(f)
+
+    FP_XLIGHT   = fm.FontProperties(fname=font_path("Roboto-ExtraLight.ttf"))
+    FP_LIGHT    = fm.FontProperties(fname=font_path("Roboto-Light.ttf"))
+    FP_REGULAR  = fm.FontProperties(fname=font_path("Roboto-Regular.ttf"))
+    FP_MEDIUM   = fm.FontProperties(fname=font_path("Roboto-Medium.ttf"))
+    FP_SEMIBOLD = fm.FontProperties(fname=font_path("Roboto-SemiBold.ttf"))
+    FP_BOLD     = fm.FontProperties(fname=font_path("Roboto-Bold.ttf"))
+    FP_XBOLD    = fm.FontProperties(fname=font_path("Roboto-ExtraBold.ttf"))
+
+    print(Back.GREEN + "Custom fonts loaded successfully from package assets/fonts/" + Back.RESET)
 except FileNotFoundError:
     print(Back.YELLOW + "Font files not found in 'assets/fonts/'. Falling back to default sans-serif." + Back.RESET)
     # Fallback to default if fonts aren't found
@@ -86,27 +94,36 @@ except Exception as e:
 
 print(Fore.BLACK + Back.LIGHTWHITE_EX + 'Loading cities' + Back.RESET)
 #cities w/pop >250
-conus_cities_ds = pd.read_csv('assets/gis/cities_100_lite.csv')
-ak_cities_ds = pd.read_csv('assets/gis/ak_cities.csv')
+with resources.files(assets).joinpath("gis/cities_100_lite.csv").open("r") as f:
+    conus_cities_ds = pd.read_csv(f)
+with resources.files(assets).joinpath("gis/ak_cities.csv").open("r") as f:
+    ak_cities_ds = pd.read_csv(f)
 
 print(Back.LIGHTWHITE_EX + 'Cities loaded. Loading logo.' + Back.RESET)
-logo_path= 'assets/logo2.png'
-logo = mpimg.imread(logo_path)
+with resources.as_file(resources.files(assets).joinpath("logo2.png")) as logo_path:
+    logo = mpimg.imread(str(logo_path))
 
 print(Back.LIGHTWHITE_EX + 'Logo loaded. Loading pre-processed 500k borders.' + Back.RESET)
 # Load the two layers from the single, pre-processed gpkg file.
-counties_gdf = gpd.read_file("assets/gis/processed_borders_500k.gpkg", layer='counties')
-states_gdf = gpd.read_file("assets/gis/processed_borders_500k.gpkg", layer='states')
+with resources.as_file(resources.files(assets).joinpath("gis/processed_borders_500k.gpkg")) as gpkg_path:
+    counties_gdf = gpd.read_file(gpkg_path, layer="counties")
+with resources.as_file(resources.files(assets).joinpath("gis/processed_borders_500k.gpkg")) as gpkg_path:
+    states_gdf = gpd.read_file(gpkg_path, layer="states")
 
 print(Back.LIGHTWHITE_EX + 'Borders loaded. Loading water features.' + Back.RESET)
 
-lakes4km = gpd.read_file("assets/gis/water/lakes_4km_compressed.fgb")
-lakes15km = gpd.read_file('assets/gis/water/lakes_15km_compressed.fgb')
-oceans = gpd.read_file("assets/gis/water/water_background.fgb")
+with resources.as_file(resources.files(assets).joinpath("gis/water/lakes_4km_compressed.fgb")) as fgb_path:
+    lakes4km = gpd.read_file(fgb_path)
+with resources.as_file(resources.files(assets).joinpath("gis/water/lakes_15km_compressed.fgb")) as fgb_path:
+    lakes15km = gpd.read_file(fgb_path)
+with resources.as_file(resources.files(assets).joinpath("gis/water/water_background.fgb")) as fgb_path:
+    oceans = gpd.read_file(fgb_path)
 
 print(Back.LIGHTWHITE_EX + 'Water features loaded. Loading roads.' + Back.RESET)
-interstates = gpd.read_file("assets/gis/processed_interstates_500k_5prec_10tol.fgb") #3  decimals on the coords
-us_highways = gpd.read_file('assets/gis/all_us_highways_10tol.fgb') #us highways for conus and state highways for ak/hi. dataset does not have us/state highways equivalents for PR...
+with resources.as_file(resources.files(assets).joinpath("gis/processed_interstates_500k_5prec_10tol.fgb")) as fgb_path:
+    interstates = gpd.read_file(fgb_path)
+with resources.as_file(resources.files(assets).joinpath("gis/all_us_highways_10tol.fgb")) as fgb_path:
+    us_highways = gpd.read_file(fgb_path) 
 
 print(Back.LIGHTWHITE_EX + 'All data loaded successfully.' + Back.RESET + Fore.RESET)
 #interstates.to_csv('interstates_filtered.csv')

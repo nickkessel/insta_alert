@@ -6,6 +6,7 @@ from insta_alert.utils.constants import SEVERE, WATCHES, WINTER, OTHER, ALL
 ALERT_TYPES_TO_MONITOR = (
     ALL
 )
+LOG_FILE = 'logs/posted_alerts_cincy.log'
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 
