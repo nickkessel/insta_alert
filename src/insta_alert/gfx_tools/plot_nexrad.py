@@ -486,18 +486,23 @@ def _level2_to_dataset(level2):
     gate_count = max(len(ray[4][b"REF"][1]) for ray in reflectivity_rays)
 
     azimuth_centers = np.asarray(
-        [float(ray[0].az_angle) % 360 for ray in reflectivity_rays], dtype=float
+        [float(ray[0].az_angle) for ray in reflectivity_rays], dtype=float
     )
-    order = np.argsort(azimuth_centers)
-    azimuth_centers = azimuth_centers[order]
-    reflectivity_rays = [reflectivity_rays[index] for index in order]
+
+    if not np.isfinite(azimuth_centers).all():
+        raise ValueError('Level II sweep contains invalid azimuth values')
+
+    azimuth_centers = np.rad2deg(
+        np.unwrap(np.deg2rad(azimuth_centers))
+    )
 
     # Duplicate ray centers produce zero-width pcolormesh cells. Retain the
     # first ray at each azimuth, which is sufficient for a single base sweep.
     keep = np.concatenate(([True], np.diff(azimuth_centers) > 1e-6))
     azimuth_centers = azimuth_centers[keep]
     reflectivity_rays = [
-        ray for ray, should_keep in zip(reflectivity_rays, keep, strict=True)
+        ray 
+        for ray, should_keep in zip(reflectivity_rays, keep, strict=True)
         if should_keep
     ]
 
@@ -596,6 +601,13 @@ def _download_level2(site_id):
                     timeout=LEVEL2_REQUEST_TIMEOUT_SECONDS,
                 )
                 data_response.raise_for_status()
+                expected_size = data_response.headers.get('Content-Length')
+                if expected_size is not None and len(data_response.content) != int(expected_size):
+                    print(Back.RED + f'L2 NEXRAD: Size of downloaded radar data does not match expected. Size: {len(data_response.content)} Expected: {expected_size}. This may result in radar display issues.' + Back.RESET)
+                    raise IncompleteRead(
+                        len(data_response.content),
+                        int(expected_size)
+                    )
                 break
             except (RequestException, IncompleteRead) as exc:
                 last_download_error = exc
@@ -616,6 +628,27 @@ def _download_level2(site_id):
             valid_time, LEVEL2_MAX_PRODUCT_AGE_SECONDS, "Level II volume"
         )
         dataset = _level2_to_dataset(level2)
+        '''
+        For more detailed error reporting sub in this block for the below logic
+            if dataset.sizes["azimuth"] < 200:
+                raise ValueError("Level II sweep contains too few reflectivity rays")
+
+            if not np.isfinite(azimuth_gaps).all() or np.any(azimuth_gaps <= 0):
+                raise ValueError("Level II sweep azimuths are not monotonic")
+
+            median_gap = np.median(azimuth_gaps)
+            max_gap = np.max(azimuth_gaps)
+
+            if max_gap > max(3 * median_gap, 5):
+                raise ValueError("Level II sweep contains an irregular azimuth gap")
+        '''
+        #check if the data attributes are as expected
+        azimuth_gaps = np.diff(dataset.azimuth.values)
+        max_gap = np.max(azimuth_gaps)
+        median_gap = np.median(azimuth_gaps)
+        if (dataset.sizes['azimuth'] < 200 or not np.isfinite(azimuth_gaps).all() or max_gap > max(3 * median_gap, 5)):
+            print(Back.RED + f'L2 NEXRAD: Indication of an incomplete/irregular L2 sweep! This may result in radar display issues.' + Back.RESET)
+            raise ValueError('Incomplete or irregular Level II sweep')
     except Exception as exc:
         print(
             Back.RED

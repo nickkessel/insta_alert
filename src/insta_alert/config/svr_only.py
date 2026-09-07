@@ -10,7 +10,7 @@ env_path = cwd / ".env"
 load_dotenv(env_path)
 
 ALERT_TYPES_TO_MONITOR = (
-    ['Tornado Warning', 'Severe Thunderstorm Warning', 'Tornado Watch', 'Severe Thunderstorm Watch', 'Flash Flood Warning']
+    ['Tornado Warning', 'Severe Thunderstorm Warning', 'Tornado Watch', 'Severe Thunderstorm Watch', 'Flash Flood Warning', 'Special Weather Statement', 'Special Marine Warning']
 )
 LOG_FILE = 'logs/posted_alerts_svr.log'
 

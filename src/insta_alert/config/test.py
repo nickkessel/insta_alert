@@ -35,8 +35,8 @@ NEXRAD_SMOOTHING = False
 # Set to True to enable posting, False to disable
 OUTPUT_DIR = 'graphics/live-test2' #should be graphics/something
 POST_TO_FACEBOOK = False
-POST_TO_DISCORD = True #using tha new webhooks 
-POST_TO_INSTAGRAM_GRID = True
+POST_TO_DISCORD = False #using tha new webhooks 
+POST_TO_INSTAGRAM_GRID = False
 POST_TO_INSTAGRAM_STORY = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
