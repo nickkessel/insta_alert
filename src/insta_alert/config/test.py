@@ -9,9 +9,9 @@ cwd = Path(os.getcwd())
 env_path = cwd / ".env"
 load_dotenv(env_path)
 ALERT_TYPES_TO_MONITOR = (
-    ALL
+    SEVERE
 )
-LOG_FILE = 'logs/posted_alerts_test4.log'
+LOG_FILE = 'logs/posted_alerts_test1.log'
 # --- BOUNDING ZONES --- 
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 
@@ -23,26 +23,27 @@ CINCY_ZONES = [
 MMWX_ZONES = [
   'MIZ039', 'MIZ040', 'MIZ041', 'MIZ044', 'MIZ045', 'MIZ046', 'MIZ047', 'MIZ048', 'MIZ057', 'MIZ051', 'MIZ052', 'MIZ053', 'MIZ050', 'MIZ056', 'MIZ058', 'MIZ059', 'MIZ060', 'MIZ061', 'MIZ062', 'MIZ064', 'MIZ065', 'MIZ066', 'MIZ067', 'MIZ068', 'MIZ069', 'MIZ072', 'MIZ073', 'MIZ074', 'MIZ075','LMZ845', 'LMZ846', 'LMZ847', 'LMZ876', 'LMZ874', 'LMZ872', 'LHZ422', 'LHZ421'
 ]
-EVERYWHERE = False #polls for all alerts, ignores the active_zones flag
+EVERYWHERE = True #polls for all alerts, ignores the active_zones flag
 ACTIVE_ZONES = CINCY_ZONES #counties are w/ a C, marine zones w/ a Z
 
 # --- PREFS ---
 POST_ZONE_SPS = True #BOOL; gets kinda annoying, they are like by definition things not high enough priority to warrant the "real" thing, whether that be a DFA, WWA, etc. 
-USE_NEXRAD = "LEVEL3"  # "LEVEL2", "LEVEL3", or False for MRMS
-NEXRAD_SMOOTHING = True
+USE_NEXRAD = "LEVEL2"  # "LEVEL2", "LEVEL3", or False for MRMS
+NEXRAD_SMOOTHING = False
 
 # --- TARGETS ---
 # Set to True to enable posting, False to disable
 OUTPUT_DIR = 'graphics/live-test2' #should be graphics/something
 POST_TO_FACEBOOK = False
-POST_TO_DISCORD = False #using tha new webhooks 
-POST_TO_INSTAGRAM_GRID = False
+POST_TO_DISCORD = True #using tha new webhooks 
+POST_TO_INSTAGRAM_GRID = True
 POST_TO_INSTAGRAM_STORY = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
 
-new_logs = os.getenv("ALL_DISCORD_WEBHOOK")
-WEBHOOKS = [new_logs]
+new_logs = [os.getenv("ALL_DISCORD_WEBHOOK")]
+radar_test = os.getenv('L3_TEST_DISCORD_WEBHOOK')
+WEBHOOKS = [radar_test]
 
 # --- CAPTION ---
 DEFAULT_TAGS = '#weather #weatheralert #stayalert #wx'

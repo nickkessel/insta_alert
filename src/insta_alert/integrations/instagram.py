@@ -1,15 +1,88 @@
 from instagrapi import Client
 from dotenv import load_dotenv
 import os
+import time
+import requests
 from colorama import Fore, Back, Style
 from PIL import Image, ImageOps
 import json
 from pathlib import Path
+from insta_alert.utils.error_handler import report_error
 cwd = Path(os.getcwd())
 env_path = cwd / ".env"
+load_dotenv(override=True) #this is wild btw
 load_dotenv(env_path)
+IG_ACCESS_TOKEN = os.getenv("IG_ACCESS_TOKEN")
+IG_PAGE_ID = os.getenv("IG_PAGE_ID")
 
 SESSION_FILE = "session.json"
+
+def post_to_instagram(message, image_url): #image_url must be hosted on the web somewhere
+    '''Image url must go to somewhere on the web, and be a JPG'''
+    if not image_url:
+        print('no image URL provided!')
+        return
+   # print(IG_PAGE_ID)
+    media_url = (
+        f'https://graph.instagram.com/v26.0/{IG_PAGE_ID}/media' )
+
+    media_payload = {
+        'image_url': image_url,
+        'caption': message,
+        'access_token': IG_ACCESS_TOKEN
+    }
+    try:
+        response = requests.post(
+            media_url,
+            data = media_payload
+        )
+        response.raise_for_status()
+
+        creation_id = response.json()['id']
+
+        print(Fore.GREEN + f'IG: Created media container successfully. ID: {creation_id}' + Fore.RESET)
+
+    except requests.RequestException as e:
+        print(Fore.RED + f'IG: Some error occurred!! Detail: {e}' + Fore.RESET)
+        report_error(e, "An error occurred while attempting to create media container for Instagram posting!")
+
+        if e.response is not None:
+            print(Fore.RED + f'IG: Response: {e.response.text}' + Fore.RESET)
+            report_error(e, f"Details for the previous error: Response: {e.response.text}")
+        return
+
+    #publish container
+    publish_url = (f'https://graph.instagram.com/v26.0/{IG_PAGE_ID}/media_publish')
+    publish_payload = {
+        'creation_id': creation_id,
+        'access_token': IG_ACCESS_TOKEN
+    }
+    time.sleep(1) #if you try to post too fast after you create the media container then it errors out
+
+    try:
+        response = requests.post(
+            publish_url,
+            data= publish_payload
+        )
+        response.raise_for_status()
+        print(Fore.GREEN + f'IG: Posted to Instagram successfully!' + Fore.RESET)
+    except requests.RequestException as e:
+        print(Fore.RED + f'IG: Error publishing instagram post!! Detail: {e}' + Fore.RESET)
+        report_error(e, "An error occurred while attempting to publish the Instagram media container!")
+
+        if e.response is not None:
+            print(Fore.RED + f'IG: Response: {e.response.text}' + Fore.RESET)
+            report_error(e, f"Details for the previous error: Response: {e.response.text}")
+        return
+
+
+
+
+
+
+
+
+
 
 def instagram_login(username, password):
     """
@@ -70,7 +143,7 @@ def instagram_login(username, password):
         print(Back.RED + f"Error during Instagram login for @{username}: {e}" + Back.RESET)
         return None
 
-def make_instagram_post(caption, file_path, type, client):
+def OLD_make_instagram_post(caption, file_path, type, client):
     '''
     Args:
         caption (str): Caption for the post, including any tags
@@ -139,8 +212,5 @@ def resize_for_instagram_story(image_path, output_path):
         print(f"An error occurred: {e}")
             
 if __name__ == '__main__':
-    cl1 = instagram_login('-', '-') #returns a client object #TODO: rare but should handle case for if password is changed/session.json file is for the right username but login fails. 
-    
-    feed = cl1.get_timeline_feed()
-
-    #make_instagram_post('test??', 'graphics/alert_SPSUNR_urnoid2490184009e01364a406b776d7043786c21d5df92e5b570e20011.jpg', 'story')
+    #print(IG_ACCESS_TOKEN)
+    post_to_instagram('This is a test post!!', 'https://nickkessel.github.io/media/aboutme2.jpg')

@@ -14,6 +14,8 @@ import numpy as np
 import requests
 from scipy.ndimage import gaussian_filter
 import xarray as xr
+from requests.exceptions import RequestException
+from http.client import IncompleteRead
 
 ##
 ## a good majority of this is AI generated code; i don't have any of my jupyter notebooks from 275 anymore, so i had nothing to ref
@@ -73,7 +75,7 @@ LEVEL2_CACHE_SECONDS = 180
 LEVEL2_MAX_PRODUCT_AGE_SECONDS = 30 * 60
 LEVEL2_REQUEST_TIMEOUT_SECONDS = (10, 60)
 LEVEL2_MAX_CACHE_SIZE = 2
-LEVEL2_DOWNLOAD_RETRIES = 3
+LEVEL2_DOWNLOAD_RETRIES = 6
 
 REFLECTIVITY_PRODUCT = "p94r0"
 ONE_HOUR_ACCUMULATION_PRODUCT = "169oh"
@@ -246,6 +248,7 @@ _level2_cache = {}
 _cache_lock = threading.Lock()
 
 # what is a haversine?
+# its used for "as the crow flies"
 def _haversine_km(lat1, lon1, lat2, lon2):
     """Return great-circle distance between two points in kilometers."""
     earth_radius_km = 6371.0088
@@ -594,10 +597,12 @@ def _download_level2(site_id):
                 )
                 data_response.raise_for_status()
                 break
-            except requests.RequestException as exc:
+            except (RequestException, IncompleteRead) as exc:
                 last_download_error = exc
-                if attempt + 1 < LEVEL2_DOWNLOAD_RETRIES:
-                    time.sleep(attempt + 1)
+                if attempt + 1 >= LEVEL2_DOWNLOAD_RETRIES:
+                    print(Back.RED + f"Failed to download {directory_url + latest_filename}" + Back.RESET)
+                    return None, None
+                time.sleep(2)
         else:
             raise last_download_error
 

@@ -12,15 +12,16 @@ from dotenv import load_dotenv
 import threading #slideshow
 import queue #slideshow
 from pathlib import Path
-from .integrations.instagram import  make_instagram_post, instagram_login
+from .integrations.instagram import  post_to_instagram
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 2' + Fore.RESET + Back.RESET)
 from .integrations.discord import log_to_discord
 from .integrations.facebook import post_to_facebook
 from .gfx_tools.watch_attributes import get_watch_attributes, get_watch_number
-from .utils.logging import load_posted_alerts, save_posted_alert
+from .utils.alert_logging import load_posted_alerts, save_posted_alert
 from .utils.error_handler import report_error
 from .utils.polygon_size import calc_area
 from .utils.usage import get_current_mem_usage, log_memory_breakdown
+from .utils.cloud_storage import upload_image
 print(Back.LIGHTWHITE_EX + Fore.BLACK + 'Load 3' + Fore.RESET + Back.RESET)
 import ijson
 import gzip
@@ -412,7 +413,7 @@ def main():
         alerts_stack = []
         if IS_TESTING:
             print(Back.YELLOW + Fore.BLACK + "--- RUNNING IN TEST MODE ---" + Back.RESET)
-            with open('test_json/svr.json', 'r') as f:
+            with open('test_json/svr_test.json', 'r') as f:
                 alerts_stack = [json.load(f)]
         else:
             alerts_stack = get_nws_alerts(warning_types)
@@ -478,7 +479,7 @@ def main():
             
             if ref_check_passed: #ref_check_passed, this is the final step before posting
                 print(Fore.LIGHTBLUE_EX + f"Processing graphics for {alert_verb} alert: {clickable_alert_id}" + Fore.RESET)
-                alert_path = f'{config.OUTPUT_DIR}/alert_{awips_id}_{clean_alert_id}.png'
+                alert_path = f'{config.OUTPUT_DIR}/alert_{awips_id}_{clean_alert_id}.jpg'
                 properties = alert.get("properties", {})
                 event_type = properties.get("event")
                 try:
@@ -501,12 +502,15 @@ def main():
                             #print(config.WEBHOOKS)
                             log_to_discord(statement, alert_path, config.WEBHOOKS)
                         if config.POST_TO_INSTAGRAM_GRID:
-                            make_instagram_post(statement, alert_path, 'grid', ig_client)
-                        if config.POST_TO_INSTAGRAM_STORY:
-                            make_instagram_post(statement, alert_path, 'story', ig_client)
+                            #TODO: make it so that this is hosted on da web somewhere so IG can access it
+                            r2_image_path = upload_image(alert_path)
+                            post_to_instagram(statement, r2_image_path)
+                        if config.POST_TO_INSTAGRAM_STORY: #story posting not currently supported 
+                            post_to_instagram(statement, alert_path)
                         #add to both the local set() and the persistent set() for use across sessions
-                        posted_alerts.add(alert_id)
-                        save_posted_alert(alert_id, config.LOG_FILE)
+                        if not IS_TESTING: #if we're testing, we're likely using the same alerts over and over, so no need to log this for the future. may need to change this if wanting to test log features
+                            posted_alerts.add(alert_id)
+                            save_posted_alert(alert_id, config.LOG_FILE)
                     else:
                         print(Back.YELLOW + f'Plotting failed for {alert_id}, will retry on next scan.' + Back.RESET)
                 except Exception as e:
@@ -550,7 +554,8 @@ if __name__ == "__main__":
     #import things down here that need a populated config file
     from insta_alert.gfx_tools.polygonmaker import plot_alert_polygon
     os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-    
+    main()
+    ''' old way of IG posting
     try:
         if config.POST_TO_INSTAGRAM_GRID or config.POST_TO_INSTAGRAM_STORY:
             ig_client = instagram_login(os.getenv("IG_USER"), os.getenv("IG_PASS"))
@@ -559,3 +564,4 @@ if __name__ == "__main__":
         print(Back.RED + f"Fatal error: {e}" + Back.RESET)
         report_error(e, context="Top-level main()")
         raise  #keeps the crash visible in logs
+    '''

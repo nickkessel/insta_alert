@@ -18,7 +18,11 @@ LOG_FILE = 'logs/posted_alerts_svr.log'
 #use https://api.weather.gov/zones?type=county search to find county codes. best source.
 
 CINCY_ZONES = [
-  'OHZ078', 'OHZ079', 'OHZ079', 'OHZ080', 'OHZ077', 'OHZ071', 'OHZ070', 'OHZ072', 'INZ066', 'INZ074', 'INZ075', 'KY091', 'KY092', 'KY093'
+    # forecast zones
+    'OHZ078', 'OHZ079', 'OHZ080', 'OHZ081', 'OHZ077', 'OHZ070', 'OHZ071', 'OHZ072', 'OHZ060', 'OHZ061', 'OHZ062', 'INZ066', 'INZ074', 'INZ075', 'KYZ091', 'KYZ092', 'KYZ093',
+    # county codes
+    'OHC025', 'OHC015', 'OHC071', 'OHC001', 'OHC061', 'OHC017', 'OHC165', 'OHC027', 'OHC135', 'OHC113', 'OHC057', 'INC047', 'INC029', 'INC115', 'KYC015', 'KYC117', 'KYC037'
+    # clermont, brown, highland, adams, hamilton, butler, warren, clinton, preble, montgomery, greene, franklin, dearborn, ohio, boone, kenton, campbell
 ]
 MMWX_ZONES = [
   'MIZ039', 'MIZ040', 'MIZ041', 'MIZ044', 'MIZ045', 'MIZ046', 'MIZ047', 'MIZ048', 'MIZ057', 'MIZ051', 'MIZ052', 'MIZ053', 'MIZ050', 'MIZ056', 'MIZ058', 'MIZ059', 'MIZ060', 'MIZ061', 'MIZ062', 'MIZ064', 'MIZ065', 'MIZ066', 'MIZ067', 'MIZ068', 'MIZ069', 'MIZ072', 'MIZ073', 'MIZ074', 'MIZ075','LMZ845', 'LMZ846', 'LMZ847', 'LMZ876', 'LMZ874', 'LMZ872', 'LHZ422', 'LHZ421'
@@ -28,7 +32,7 @@ ACTIVE_ZONES = CINCY_ZONES #counties are w/ a C, marine zones w/ a Z
 
 # --- PREFS ---
 POST_ZONE_SPS = False #BOOL; gets kinda annoying, they are like by definition things not high enough priority to warrant the "real" thing, whether that be a DFA, WWA, etc. 
-USE_NEXRAD = "LEVEL3"  # "LEVEL2", "LEVEL3", or False for MRMS
+USE_NEXRAD = "LEVEL2"  # "LEVEL2", "LEVEL3", or False for MRMS
 NEXRAD_SMOOTHING = False
 
 # --- TARGETS ---
@@ -41,7 +45,7 @@ POST_TO_INSTAGRAM_STORY = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
 DISCORD_PINGS_ALL = ['1427050976732254300'] #role to mention for all errors
-WEBHOOKS = [os.getenv("ALL_DISCORD_WEBHOOK")]
+WEBHOOKS = [os.getenv("ALL_DISCORD_WEBHOOK")] #TODO: change back to "ALL" when published
 
 # --- CAPTION ---
 DEFAULT_TAGS = '#weather #weatheralert #stayalert #wx'

@@ -30,8 +30,8 @@ ACTIVE_ZONES = CINCY_ZONES #counties are w/ a C, marine zones w/ a Z
 
 # --- PREFS ---
 POST_ZONE_SPS = False #BOOL; gets kinda annoying, they are like by definition things not high enough priority to warrant the "real" thing, whether that be a DFA, WWA, etc. 
-USE_NEXRAD = "LEVEL3"  # "LEVEL2", "LEVEL3", or False for MRMS
-NEXRAD_SMOOTHING = True
+USE_NEXRAD = "LEVEL2"  # "LEVEL2", "LEVEL3", or False for MRMS
+NEXRAD_SMOOTHING = False
 
 # --- TARGETS ---
 # Set to True to enable posting, False to disable
@@ -39,7 +39,7 @@ OUTPUT_DIR = 'graphics/cincy' #should be graphics/something
 POST_TO_FACEBOOK = True
 POST_TO_DISCORD = True
 POST_TO_INSTAGRAM_GRID = True
-POST_TO_INSTAGRAM_STORY = True
+POST_TO_INSTAGRAM_STORY = False
 SEND_TO_SLIDESHOW = False 
 # A list of Discord webhook URLs to send alerts to
 WEBHOOKS = [os.getenv('CINCYWX_DISCORD_WEBHOOK')]

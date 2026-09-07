@@ -19,7 +19,7 @@ def report_error(error: Exception, context: str):
         mentions_text = ' '.join(
             [f"<@&{role}>" for role in mention_roles]
         )
-        print(mentions_text)
+        #print(mentions_text)
         memory_usage =  get_current_mem_usage()
         # Compose message
         message = (
