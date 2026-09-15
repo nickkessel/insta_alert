@@ -70,7 +70,7 @@ LEVEL3_MAX_PRODUCT_AGE_SECONDS = 30 * 60
 LEVEL3_REQUEST_TIMEOUT_SECONDS = 15
 LEVEL3_MAX_CACHE_SIZE = 6
 
-LEVEL2_BASE_URL = "https://nomads.ncep.noaa.gov/pub/data/nccf/radar/nexrad_level2"
+LEVEL2_BASE_URL = "https://tgftp.nws.noaa.gov/data/radar/nexrad_level2/"
 LEVEL2_CACHE_SECONDS = 180
 LEVEL2_MAX_PRODUCT_AGE_SECONDS = 30 * 60
 LEVEL2_REQUEST_TIMEOUT_SECONDS = (10, 60)
